@@ -1,0 +1,2590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS FEA — Real-Time Finite Element Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* === RESET & ROOT === */
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --void:#02020a; --surface:#0d0d1a; --surface-2:#13131f;
+    --glass:rgba(255,255,255,0.03); --glass-border:rgba(255,255,255,0.08);
+    --glass-hover:rgba(255,255,255,0.06);
+    --text:#e8ecf4; --text-dim:#8a92a8; --text-mute:#5b6478;
+    --cyan:#00d4ff; --cyan-glow:rgba(0,212,255,0.4);
+    --danger:#ff3b3b; --danger-glow:rgba(255,59,59,0.5);
+    --safe:#00ff88; --safe-glow:rgba(0,255,136,0.4);
+    --nexus:#bf7af0; --nexus-glow:rgba(191,122,240,0.45);
+    --amber:#ffb547;
+    --ease:cubic-bezier(.4,0,.2,1);
+    --ease-out:cubic-bezier(.16,1,.3,1);
+  }
+  html,body{ width:100%; height:100%; overflow:hidden;
+    background:var(--void); color:var(--text);
+    font-family:'Rajdhani',sans-serif; font-weight:500;
+    -webkit-font-smoothing:antialiased; letter-spacing:0.02em;
+    user-select:none;
+  }
+  /* === DOT GRID BACKGROUND === */
+  .bg-grid{ position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+    animation: gridDrift 40s linear infinite;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 30%, transparent 90%);
+  }
+  @keyframes gridDrift{ from{background-position:0 0;} to{background-position:24px 24px;} }
+  /* === MAIN LAYOUT === */
+  #app{ position:relative; width:100vw; height:100vh; display:grid;
+    grid-template-rows:48px 1fr 56px; grid-template-columns:280px 1fr 320px;
+    grid-template-areas: "top top top" "left center right" "bottom bottom bottom";
+    z-index:1;
+  }
+  /* === TOP BAR === */
+  .topbar{ grid-area:top; display:flex; align-items:center; padding:0 16px; gap:12px;
+    background:linear-gradient(180deg, rgba(13,13,26,0.95), rgba(13,13,26,0.85));
+    border-bottom:1px solid var(--glass-border); backdrop-filter: blur(20px);
+    z-index:10;
+  }
+  .logo{ display:flex; align-items:center; gap:10px; padding-right:16px;
+    border-right:1px solid var(--glass-border);}
+  .logo-mark{ width:26px; height:26px; position:relative;}
+  .logo-mark svg{width:100%;height:100%;}
+  .logo-text{ font-weight:700; font-size:15px; letter-spacing:0.22em; }
+  .logo-text .accent{ color:var(--cyan); }
+  .logo-sub{ font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-mute);
+    letter-spacing:0.15em; margin-top:1px;}
+  .topbar-section{ display:flex; align-items:center; gap:6px; padding:0 12px;
+    border-right:1px solid var(--glass-border); height:100%; }
+  .topbar-section:last-child{border-right:none;}
+  .topbar-label{ font-size:10px; color:var(--text-mute); letter-spacing:0.18em; text-transform:uppercase;
+    margin-right:4px;}
+  .preset-btn{ background:var(--glass); border:1px solid var(--glass-border);
+    color:var(--text-dim); padding:5px 10px; border-radius:4px; font-family:'Rajdhani';
+    font-size:11px; letter-spacing:0.12em; font-weight:600; cursor:pointer;
+    transition: all 0.2s var(--ease); text-transform:uppercase;}
+  .preset-btn:hover{ background:var(--glass-hover); color:var(--cyan); border-color:rgba(0,212,255,0.3); }
+  .preset-btn .k{ display:inline-block; color:var(--text-mute); margin-right:5px;
+    font-family:'JetBrains Mono'; font-size:9px;}
+  .topbar-spacer{ flex:1; }
+  .shortcut-hint{ display:flex; gap:10px; font-size:10px; color:var(--text-mute);
+    font-family:'JetBrains Mono'; letter-spacing:0.08em; }
+  .shortcut-hint span kbd{ background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:3px;
+    border:1px solid var(--glass-border); margin-right:3px; color:var(--text-dim); font-size:9px;}
+  .api-key-btn{ background:var(--glass); border:1px solid var(--glass-border);
+    padding:5px 12px; border-radius:4px; color:var(--nexus); cursor:pointer;
+    font-size:11px; letter-spacing:0.1em; font-weight:600;
+    display:flex; align-items:center; gap:6px;
+    transition: all 0.2s var(--ease);}
+  .api-key-btn:hover{ background:rgba(191,122,240,0.08); border-color:rgba(191,122,240,0.3);}
+  .api-key-btn .dot{ width:6px; height:6px; border-radius:50%; background:var(--amber);
+    box-shadow:0 0 6px var(--amber);}
+  .api-key-btn.connected .dot{ background:var(--safe); box-shadow:0 0 8px var(--safe); }
+
+  /* === LEFT SIDEBAR === */
+  .sidebar{ background:linear-gradient(180deg, rgba(13,13,26,0.85), rgba(13,13,26,0.7));
+    border:1px solid var(--glass-border); backdrop-filter: blur(20px);
+    display:flex; flex-direction:column; overflow:hidden;}
+  .left-sidebar{ grid-area:left; border-left:none; border-top:none; border-bottom:none;}
+  .right-sidebar{ grid-area:right; border-right:none; border-top:none; border-bottom:none;}
+  .panel-section{ padding:14px 16px; border-bottom:1px solid var(--glass-border);}
+  .panel-section:last-child{border-bottom:none;}
+  .panel-title{ font-size:11px; letter-spacing:0.2em; color:var(--text-mute);
+    text-transform:uppercase; font-weight:600; margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;}
+  .panel-title .num{ font-family:'JetBrains Mono'; color:var(--cyan); font-size:10px;}
+  .tool-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px;}
+  .tool-btn{ background:var(--glass); border:1px solid var(--glass-border);
+    padding:10px 8px; border-radius:5px; color:var(--text-dim);
+    cursor:pointer; font-family:'Rajdhani'; font-size:11px; letter-spacing:0.1em;
+    font-weight:600; text-transform:uppercase; transition:all 0.2s var(--ease);
+    display:flex; flex-direction:column; align-items:center; gap:5px;}
+  .tool-btn:hover{ background:var(--glass-hover); color:var(--text); border-color:rgba(255,255,255,0.18);}
+  .tool-btn.active{ background:rgba(0,212,255,0.08); border-color:rgba(0,212,255,0.4);
+    color:var(--cyan); box-shadow:0 0 12px rgba(0,212,255,0.15) inset;}
+  .tool-btn svg{ width:18px; height:18px; }
+  .material-select{ width:100%; background:var(--glass); border:1px solid var(--glass-border);
+    color:var(--text); padding:8px 10px; border-radius:5px; font-family:'Rajdhani';
+    font-size:13px; font-weight:600; letter-spacing:0.08em; cursor:pointer;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2300d4ff' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center;}
+  .material-select option{ background:#0d0d1a; }
+  .material-info{ margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:6px 12px;}
+  .mat-row{ display:flex; justify-content:space-between; font-family:'JetBrains Mono';
+    font-size:10px; color:var(--text-dim);}
+  .mat-row .val{ color:var(--cyan); font-weight:500;}
+  .slider-row{ margin-bottom:10px;}
+  .slider-label{ display:flex; justify-content:space-between; font-size:10px;
+    color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase;
+    margin-bottom:6px; font-weight:600;}
+  .slider-label .val{ font-family:'JetBrains Mono'; color:var(--cyan);}
+  .slider{ width:100%; -webkit-appearance:none; appearance:none; height:3px;
+    background:rgba(255,255,255,0.08); border-radius:2px; outline:none;}
+  .slider::-webkit-slider-thumb{ -webkit-appearance:none; width:14px; height:14px;
+    border-radius:50%; background:var(--cyan); cursor:pointer;
+    box-shadow:0 0 10px var(--cyan-glow); border:2px solid var(--surface);}
+  .slider::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
+    background:var(--cyan); border:2px solid var(--surface); cursor:pointer;
+    box-shadow:0 0 10px var(--cyan-glow);}
+  .checkbox-row{ display:flex; align-items:center; gap:8px; padding:6px 0;
+    font-size:11px; color:var(--text-dim); letter-spacing:0.1em;
+    text-transform:uppercase; font-weight:600; cursor:pointer;}
+  .checkbox-row:hover{ color:var(--text);}
+  .checkbox-row input{ accent-color:var(--cyan); width:14px; height:14px; cursor:pointer;}
+  .primary-btn{ width:100%; background:linear-gradient(180deg, #00d4ff, #0099cc);
+    color:#001620; border:none; padding:12px; border-radius:5px;
+    font-family:'Rajdhani'; font-size:13px; font-weight:700; letter-spacing:0.2em;
+    cursor:pointer; text-transform:uppercase;
+    box-shadow:0 4px 20px rgba(0,212,255,0.3), 0 0 20px rgba(0,212,255,0.15) inset;
+    transition:all 0.2s var(--ease);}
+  .primary-btn:hover{ box-shadow:0 4px 30px rgba(0,212,255,0.5), 0 0 25px rgba(0,212,255,0.2) inset;
+    transform: translateY(-1px);}
+  .primary-btn:active{ transform: translateY(0);}
+  .primary-btn:disabled{ opacity:0.4; cursor:not-allowed; transform:none;}
+  .secondary-btn{ width:100%; background:var(--glass); border:1px solid var(--glass-border);
+    color:var(--text-dim); padding:9px; border-radius:5px; font-family:'Rajdhani';
+    font-size:11px; font-weight:600; letter-spacing:0.15em; cursor:pointer;
+    text-transform:uppercase; transition:all 0.2s var(--ease); margin-top:6px;}
+  .secondary-btn:hover{ background:var(--glass-hover); color:var(--text);}
+
+  /* === CENTER CANVAS AREA === */
+  .center{ grid-area:center; position:relative; overflow:hidden;
+    background:radial-gradient(ellipse 60% 50% at 50% 50%, #0a0a18 0%, var(--void) 100%);}
+  #glcanvas, #overlay{ position:absolute; inset:0; width:100%; height:100%; display:block;}
+  #overlay{ pointer-events:auto;}
+  .mode-indicator{ position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:rgba(13,13,26,0.85); border:1px solid var(--glass-border);
+    padding:6px 14px; border-radius:20px; font-size:10px; letter-spacing:0.25em;
+    color:var(--cyan); text-transform:uppercase; font-weight:600;
+    backdrop-filter:blur(10px); pointer-events:none;
+    box-shadow:0 0 20px rgba(0,212,255,0.1);}
+  .mode-indicator .dot{ display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--cyan); margin-right:8px; box-shadow:0 0 6px var(--cyan-glow);
+    animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.4;}}
+  .solve-overlay{ position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
+    opacity:0; transition:opacity 0.3s var(--ease);}
+  .solve-overlay.active{ opacity:1;}
+  .yield-warning{ position:absolute; inset:0; pointer-events:none;
+    border:2px solid var(--danger); opacity:0; transition:opacity 0.3s var(--ease);
+    box-shadow:0 0 60px var(--danger-glow) inset;}
+  .yield-warning.active{ animation: yieldFlash 0.8s var(--ease);}
+  @keyframes yieldFlash{ 0%,100%{opacity:0;} 30%{opacity:1;}}
+
+  /* === RIGHT SIDEBAR (NEXUS) === */
+  .nexus-header{ display:flex; align-items:center; gap:10px; padding:16px;
+    border-bottom:1px solid var(--glass-border); background:linear-gradient(180deg, rgba(191,122,240,0.05), transparent);}
+  .nexus-avatar{ width:34px; height:34px; border-radius:50%;
+    background:radial-gradient(circle, var(--nexus) 0%, rgba(191,122,240,0.2) 70%, transparent 100%);
+    position:relative; display:flex; align-items:center; justify-content:center;}
+  .nexus-avatar::after{ content:''; position:absolute; inset:8px;
+    border-radius:50%; background:#0d0d1a; }
+  .nexus-avatar::before{ content:''; position:absolute; width:8px; height:8px;
+    border-radius:50%; background:var(--nexus); z-index:1;
+    box-shadow:0 0 12px var(--nexus-glow);
+    animation:nexusPulse 2s ease-in-out infinite;}
+  @keyframes nexusPulse{ 0%,100%{ transform:scale(1); opacity:1;} 50%{ transform:scale(1.3); opacity:0.7;}}
+  .nexus-name{ font-size:13px; letter-spacing:0.2em; font-weight:700;}
+  .nexus-name .accent{ color:var(--nexus);}
+  .nexus-status{ font-family:'JetBrains Mono'; font-size:9px; color:var(--text-mute);
+    letter-spacing:0.1em; margin-top:1px;}
+  .nexus-status .live{ color:var(--safe);}
+  .nexus-content{ flex:1; padding:16px; overflow-y:auto; font-size:13px;
+    line-height:1.6; color:var(--text-dim);}
+  .nexus-content::-webkit-scrollbar{ width:4px;}
+  .nexus-content::-webkit-scrollbar-thumb{ background:rgba(191,122,240,0.3); border-radius:2px;}
+  .nexus-message{ margin-bottom:16px; opacity:0; animation:fadeUp 0.4s var(--ease-out) forwards;}
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .nexus-message p{ margin-bottom:8px;}
+  .nexus-badge{ display:inline-block; padding:4px 10px; border-radius:3px;
+    font-family:'Rajdhani'; font-size:10px; font-weight:700; letter-spacing:0.2em;
+    text-transform:uppercase; margin-bottom:10px;
+    animation: badgeIn 0.4s var(--ease-out);}
+  @keyframes badgeIn{ from{ transform:scale(0.8); opacity:0;} to{transform:scale(1); opacity:1;}}
+  .nexus-badge.safe{ background:rgba(0,255,136,0.1); color:var(--safe); border:1px solid rgba(0,255,136,0.3);
+    box-shadow:0 0 12px rgba(0,255,136,0.15);}
+  .nexus-badge.yielding{ background:rgba(255,59,59,0.12); color:var(--danger);
+    border:1px solid rgba(255,59,59,0.4); box-shadow:0 0 14px rgba(255,59,59,0.2);}
+  .nexus-badge.fatigue{ background:rgba(255,181,71,0.1); color:var(--amber);
+    border:1px solid rgba(255,181,71,0.3); box-shadow:0 0 12px rgba(255,181,71,0.15);}
+  .nexus-badge.concentration{ background:rgba(191,122,240,0.1); color:var(--nexus);
+    border:1px solid rgba(191,122,240,0.3);}
+  .typing-cursor{ display:inline-block; width:7px; height:13px; background:var(--nexus);
+    vertical-align:middle; margin-left:2px; animation:caret 0.8s steps(2) infinite;}
+  @keyframes caret{ 0%,50%{opacity:1;} 51%,100%{opacity:0;}}
+  .history-panel{ padding:14px 16px; border-top:1px solid var(--glass-border);}
+  .history-frames{ display:flex; gap:4px; height:36px; align-items:flex-end;}
+  .history-frame{ flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);
+    min-height:6px; border-radius:1px; cursor:pointer; transition:all 0.2s var(--ease);
+    position:relative;}
+  .history-frame:hover{ background:rgba(0,212,255,0.2);}
+  .history-frame.active{ background:linear-gradient(180deg, var(--cyan), rgba(0,212,255,0.3));
+    box-shadow:0 0 8px var(--cyan-glow);}
+
+  /* === BOTTOM BAR === */
+  .bottombar{ grid-area:bottom; display:flex; align-items:center; gap:16px;
+    padding:0 18px;
+    background:linear-gradient(0deg, rgba(13,13,26,0.95), rgba(13,13,26,0.85));
+    border-top:1px solid var(--glass-border); backdrop-filter: blur(20px); z-index:10;}
+  .colorbar-container{ flex:1; max-width:520px; display:flex; align-items:center; gap:10px;}
+  .colorbar-label{ font-size:10px; color:var(--text-mute); letter-spacing:0.18em;
+    text-transform:uppercase; font-weight:600; width:auto;}
+  .colorbar{ flex:1; height:14px; border-radius:2px; position:relative;
+    border:1px solid var(--glass-border);
+    background:linear-gradient(90deg,
+      #1a0033 0%, #4400aa 12%, #0066ff 28%, #00ddff 44%,
+      #00ff77 58%, #ddff00 70%, #ff8800 82%, #ff2222 92%, #ffffff 100%);}
+  .colorbar-ticks{ display:flex; justify-content:space-between; font-family:'JetBrains Mono';
+    font-size:9px; color:var(--text-mute); margin-top:3px; width:100%;}
+  .stat-block{ display:flex; align-items:center; gap:14px; padding:0 10px;
+    border-left:1px solid var(--glass-border); height:40px;}
+  .stat{ display:flex; flex-direction:column;}
+  .stat .label{ font-size:9px; color:var(--text-mute); letter-spacing:0.15em;
+    text-transform:uppercase; font-weight:600;}
+  .stat .val{ font-family:'JetBrains Mono'; font-size:14px; color:var(--text);
+    font-weight:500; letter-spacing:0.04em;}
+  .stat .val.cyan{ color:var(--cyan);}
+  .stat .val.danger{ color:var(--danger);}
+  .stat .val.safe{ color:var(--safe);}
+
+  /* === MODAL === */
+  .modal-back{ position:fixed; inset:0; background:rgba(2,2,10,0.85);
+    backdrop-filter:blur(12px); z-index:1000; display:none;
+    align-items:center; justify-content:center;}
+  .modal-back.active{ display:flex; animation: fadeIn 0.3s var(--ease);}
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;}}
+  .modal{ background:var(--surface); border:1px solid var(--glass-border);
+    border-radius:8px; padding:28px; width:480px; max-width:90vw;
+    box-shadow:0 20px 80px rgba(0,0,0,0.6), 0 0 60px rgba(191,122,240,0.1);}
+  .modal h2{ font-size:18px; letter-spacing:0.2em; margin-bottom:6px; font-weight:700;}
+  .modal h2 .accent{color:var(--nexus);}
+  .modal p{ font-size:13px; color:var(--text-dim); line-height:1.6; margin-bottom:18px;}
+  .modal p a{ color:var(--cyan); text-decoration:none;}
+  .modal-input{ width:100%; background:var(--glass); border:1px solid var(--glass-border);
+    padding:11px 14px; border-radius:5px; color:var(--text); font-family:'JetBrains Mono';
+    font-size:12px; outline:none; margin-bottom:12px;}
+  .modal-input:focus{ border-color:var(--nexus); box-shadow:0 0 12px rgba(191,122,240,0.2);}
+  .modal-actions{ display:flex; gap:10px; margin-top:8px;}
+  .modal-btn{ flex:1; padding:10px; border-radius:5px; border:none;
+    font-family:'Rajdhani'; font-size:12px; letter-spacing:0.15em; font-weight:700;
+    text-transform:uppercase; cursor:pointer; transition:all 0.2s var(--ease);}
+  .modal-btn.primary{ background:var(--nexus); color:#fff;
+    box-shadow:0 0 20px rgba(191,122,240,0.4);}
+  .modal-btn.primary:hover{ box-shadow:0 0 30px rgba(191,122,240,0.6);}
+  .modal-btn.secondary{ background:var(--glass); color:var(--text-dim);
+    border:1px solid var(--glass-border);}
+
+  /* === TOOLTIP / PROBE === */
+  .probe-tooltip{ position:absolute; background:rgba(13,13,26,0.95);
+    border:1px solid var(--glass-border); padding:8px 10px; border-radius:5px;
+    font-family:'JetBrains Mono'; font-size:10px; color:var(--text);
+    pointer-events:none; z-index:50; backdrop-filter:blur(10px);
+    box-shadow:0 4px 20px rgba(0,0,0,0.6); min-width:160px;
+    opacity:0; transition:opacity 0.15s;}
+  .probe-tooltip.active{ opacity:1;}
+  .probe-tooltip .row{ display:flex; justify-content:space-between; gap:14px; padding:1px 0;}
+  .probe-tooltip .row .k{ color:var(--text-mute);}
+  .probe-tooltip .row .v{ color:var(--cyan);}
+  .probe-tooltip .row .v.danger{color:var(--danger);}
+  .probe-tooltip .row .v.safe{color:var(--safe);}
+
+  /* === INTRO OVERLAY === */
+  .intro{ position:fixed; inset:0; background:var(--void); z-index:9999;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    transition:opacity 0.8s var(--ease);}
+  .intro.fade{ opacity:0; pointer-events:none;}
+  .intro-logo{ font-size:38px; letter-spacing:0.4em; font-weight:700; color:var(--text);
+    opacity:0; animation: introIn 0.8s var(--ease-out) 0.3s forwards;}
+  .intro-logo .accent{ color:var(--cyan); text-shadow:0 0 30px var(--cyan-glow);}
+  .intro-sub{ font-family:'JetBrains Mono'; font-size:10px; color:var(--text-mute);
+    letter-spacing:0.25em; margin-top:12px; opacity:0;
+    animation: introIn 0.8s var(--ease-out) 0.7s forwards;}
+  .intro-bar{ width:200px; height:1px; background:rgba(255,255,255,0.1); margin-top:30px;
+    overflow:hidden; opacity:0; animation:introIn 0.8s 0.9s forwards;}
+  .intro-bar-fill{ height:100%; background:var(--cyan); width:0;
+    animation:barFill 1.5s var(--ease-out) 1s forwards;
+    box-shadow:0 0 10px var(--cyan-glow);}
+  @keyframes barFill{ to{width:100%;}}
+  @keyframes introIn{ to{opacity:1;}}
+  .intro-canvas{ position:absolute; inset:0; pointer-events:none;}
+
+  /* misc */
+  .hint-text{ font-size:10px; color:var(--text-mute); letter-spacing:0.1em;
+    font-family:'JetBrains Mono'; margin-top:8px; line-height:1.5;}
+  .force-input-popup{ position:absolute; background:rgba(13,13,26,0.96);
+    border:1px solid var(--glass-border); border-radius:6px; padding:10px;
+    z-index:60; backdrop-filter:blur(12px); display:none; gap:6px; flex-direction:column;
+    box-shadow:0 6px 30px rgba(0,0,0,0.5);}
+  .force-input-popup.active{display:flex;}
+  .force-input-popup label{ font-size:9px; letter-spacing:0.15em; color:var(--text-mute);
+    text-transform:uppercase;}
+  .force-input-popup input{ background:var(--glass); border:1px solid var(--glass-border);
+    color:var(--text); padding:5px 8px; border-radius:3px; font-family:'JetBrains Mono';
+    font-size:11px; width:90px; outline:none;}
+  .force-input-popup button{ background:var(--cyan); border:none; padding:5px;
+    border-radius:3px; color:#001620; font-weight:700; font-size:10px;
+    letter-spacing:0.15em; cursor:pointer;}
+  .small-stat-row{ display:flex; justify-content:space-between;
+    font-family:'JetBrains Mono'; font-size:10px; padding:3px 0; color:var(--text-dim);}
+  .small-stat-row .v{color:var(--cyan);}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<!-- === INTRO === -->
+<div class="intro" id="intro">
+  <canvas class="intro-canvas" id="intro-canvas"></canvas>
+  <div class="intro-logo">NEXUS <span class="accent">FEA</span></div>
+  <div class="intro-sub">REAL-TIME FINITE ELEMENT ANALYSIS</div>
+  <div class="intro-bar"><div class="intro-bar-fill"></div></div>
+</div>
+
+<!-- === MAIN APP === -->
+<div id="app">
+
+  <!-- === TOP BAR === -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 32 32" fill="none">
+          <path d="M4 6 L16 2 L28 6 L28 22 L16 30 L4 22 Z" stroke="#00d4ff" stroke-width="1.4" fill="rgba(0,212,255,0.05)"/>
+          <path d="M16 2 L16 30 M4 6 L28 22 M28 6 L4 22" stroke="#00d4ff" stroke-width="0.6" opacity="0.5"/>
+          <circle cx="16" cy="16" r="2.5" fill="#00d4ff"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">NEXUS <span class="accent">FEA</span></div>
+        <div class="logo-sub">v1.0 · CST · WEBGL2</div>
+      </div>
+    </div>
+    <div class="topbar-section">
+      <span class="topbar-label">Presets</span>
+      <button class="preset-btn" data-preset="plate-hole"><span class="k">1</span>Plate+Hole</button>
+      <button class="preset-btn" data-preset="ibeam"><span class="k">2</span>I-Beam</button>
+      <button class="preset-btn" data-preset="lbracket"><span class="k">3</span>L-Bracket</button>
+      <button class="preset-btn" data-preset="cantilever"><span class="k">4</span>Cantilever</button>
+      <button class="preset-btn" data-preset="truss"><span class="k">5</span>Truss</button>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="shortcut-hint">
+      <span><kbd>S</kbd>Solve</span>
+      <span><kbd>R</kbd>Reset</span>
+      <span><kbd>G</kbd>Mesh</span>
+      <span><kbd>D</kbd>Deform</span>
+    </div>
+    <button class="api-key-btn connected" id="api-key-btn">
+      <span class="dot"></span>
+      <span>NEXUS AI</span>
+    </button>
+  </div>
+
+  <!-- === LEFT SIDEBAR === -->
+  <div class="sidebar left-sidebar">
+
+    <div class="panel-section">
+      <div class="panel-title"><span class="num">01</span>Geometry</div>
+      <div class="tool-grid">
+        <button class="tool-btn active" data-tool="select" title="Select / Pan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3 L19 12 L13 13 L11 19 Z"/></svg>
+          Select
+        </button>
+        <button class="tool-btn" data-tool="sketch" title="Sketch polygon — click to add nodes, double-click to close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 18 L8 6 L18 8 L20 16 L12 20 Z"/><circle cx="4" cy="18" r="1.5" fill="currentColor"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="18" cy="8" r="1.5" fill="currentColor"/><circle cx="20" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="20" r="1.5" fill="currentColor"/></svg>
+          Sketch
+        </button>
+        <button class="tool-btn" data-tool="constraint" title="Apply boundary constraint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 20 L21 20" /><path d="M5 20 L7 16 L9 20 Z M9 20 L11 16 L13 20 Z M13 20 L15 16 L17 20 Z"/></svg>
+          Fix
+        </button>
+        <button class="tool-btn" data-tool="force" title="Apply force — click a node, drag to set vector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5 L19 19" /><path d="M19 19 L19 14 M19 19 L14 19"/></svg>
+          Force
+        </button>
+        <button class="tool-btn" data-tool="probe" title="Pin stress probe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="6"/><path d="M15.5 15.5 L20 20"/></svg>
+          Probe
+        </button>
+        <button class="tool-btn" data-tool="erase" title="Clear all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 7 L18 7 L17 20 L7 20 Z M9 4 L15 4 L15 7 L9 7 Z M10 11 L10 17 M14 11 L14 17"/></svg>
+          Clear
+        </button>
+      </div>
+      <div class="hint-text" id="tool-hint">Use Sketch tool: click to add nodes, double-click to close polygon. Or load a preset.</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title"><span class="num">02</span>Material</div>
+      <select class="material-select" id="material-select">
+        <option value="steel">Structural Steel</option>
+        <option value="aluminum">Aluminum 6061</option>
+        <option value="carbon">Carbon Fiber (iso)</option>
+        <option value="titanium">Titanium Ti-6Al-4V</option>
+        <option value="abs">ABS Plastic</option>
+        <option value="custom">Custom...</option>
+      </select>
+      <div class="material-info" id="material-info">
+        <div class="mat-row"><span>E</span><span class="val" id="mat-E">200 GPa</span></div>
+        <div class="mat-row"><span>ν</span><span class="val" id="mat-nu">0.30</span></div>
+        <div class="mat-row"><span>σ_y</span><span class="val" id="mat-sy">250 MPa</span></div>
+        <div class="mat-row"><span>ρ</span><span class="val" id="mat-rho">7850</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title"><span class="num">03</span>Mesh</div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Density</span><span class="val" id="density-val">~400 elem</span></div>
+        <input type="range" class="slider" id="density" min="0" max="100" value="40">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label"><span>Deformation Scale</span><span class="val" id="deform-val">×100</span></div>
+        <input type="range" class="slider" id="deform" min="0" max="300" value="150">
+      </div>
+      <label class="checkbox-row"><input type="checkbox" id="show-mesh"><span>Wireframe Mesh</span></label>
+      <label class="checkbox-row"><input type="checkbox" id="show-deform" checked><span>Show Deformation</span></label>
+      <label class="checkbox-row"><input type="checkbox" id="show-contours" checked><span>Stress Contours</span></label>
+      <label class="checkbox-row"><input type="checkbox" id="show-principal"><span>Principal Stress Crosses</span></label>
+    </div>
+
+    <div class="panel-section" style="margin-top:auto;">
+      <button class="primary-btn" id="solve-btn">▶ Solve <span style="opacity:0.6; font-size:10px; margin-left:6px;">[S]</span></button>
+      <button class="secondary-btn" id="reset-btn">Reset Mesh [R]</button>
+    </div>
+  </div>
+
+  <!-- === CENTER === -->
+  <div class="center">
+    <canvas id="glcanvas"></canvas>
+    <canvas id="overlay"></canvas>
+    <div class="mode-indicator" id="mode-ind"><span class="dot"></span><span id="mode-text">Select Mode</span></div>
+    <div class="solve-overlay" id="solve-overlay"></div>
+    <div class="yield-warning" id="yield-warning"></div>
+    <div class="probe-tooltip" id="probe-tooltip"></div>
+    <div class="force-input-popup" id="force-popup">
+      <label>Magnitude (N)</label>
+      <input type="number" id="force-mag" value="1000" step="100">
+      <label>Angle (°)</label>
+      <input type="number" id="force-ang" value="270" step="15">
+      <button id="force-apply">Apply</button>
+    </div>
+  </div>
+
+  <!-- === RIGHT SIDEBAR === -->
+  <div class="sidebar right-sidebar">
+    <div class="nexus-header">
+      <div class="nexus-avatar"></div>
+      <div>
+        <div class="nexus-name">NEXUS <span class="accent">AI</span></div>
+        <div class="nexus-status">STATUS: <span class="live" id="nexus-status">STANDBY</span></div>
+      </div>
+    </div>
+    <div class="nexus-content" id="nexus-content">
+      <div class="nexus-message">
+        <p style="color:var(--text);">Welcome. I'm NEXUS — your embedded structural engineering assistant.</p>
+        <p>Sketch a geometry or load a preset, apply constraints and forces, then hit <span style="color:var(--cyan); font-family:'JetBrains Mono';">SOLVE</span>. I'll analyze every solve and provide failure mode prediction, critical zone identification, and design recommendations.</p>
+        <p style="color:var(--text-mute); font-size:11px; margin-top:14px;">→ Click "NEXUS AI" in the top bar to connect your Claude API key for live commentary.</p>
+      </div>
+    </div>
+    <div class="history-panel">
+      <div class="panel-title"><span class="num">04</span>Solve History</div>
+      <div class="history-frames" id="history-frames"></div>
+      <button class="secondary-btn" id="export-png" style="margin-top:10px;">⤓ Export PNG Report</button>
+      <button class="secondary-btn" id="export-csv">⤓ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- === BOTTOM BAR === -->
+  <div class="bottombar">
+    <div class="colorbar-container">
+      <span class="colorbar-label">σ<sub>VM</sub></span>
+      <div style="flex:1;">
+        <div class="colorbar"></div>
+        <div class="colorbar-ticks">
+          <span id="cb-0">0 MPa</span>
+          <span id="cb-25">—</span>
+          <span id="cb-50">—</span>
+          <span id="cb-75">—</span>
+          <span id="cb-100">— MPa</span>
+        </div>
+      </div>
+    </div>
+    <div class="stat-block">
+      <div class="stat"><span class="label">Nodes</span><span class="val" id="stat-nodes">0</span></div>
+      <div class="stat"><span class="label">Elem</span><span class="val" id="stat-elem">0</span></div>
+      <div class="stat"><span class="label">DOF</span><span class="val" id="stat-dof">0</span></div>
+      <div class="stat"><span class="label">Solve</span><span class="val cyan" id="stat-time">— ms</span></div>
+      <div class="stat"><span class="label">σ<sub>max</sub></span><span class="val" id="stat-smax">— MPa</span></div>
+      <div class="stat"><span class="label">SF<sub>min</sub></span><span class="val safe" id="stat-sf">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- === API STATUS MODAL === -->
+<div class="modal-back" id="api-modal">
+  <div class="modal">
+    <h2><span class="accent">NEXUS AI</span> Status</h2>
+    <p>Live structural commentary is powered by a secure backend proxy running at <code>localhost:3000</code>. The API key is stored server-side and never exposed to the browser. Start the backend with <code>node server.js</code> in the nexus-fea-backend directory.</p>
+    <div class="modal-actions">
+      <button class="modal-btn primary" id="api-cancel">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ╔═══════════════════════════════════════════════════════════════════════╗
+   ║                      NEXUS FEA — Real-Time 2D FEA                     ║
+   ║  CST elements · Bowyer-Watson Delaunay · Conjugate Gradient solver    ║
+   ║  WebGL2 stress field · Canvas 2D overlay · Claude API · Web Worker    ║
+   ╚═══════════════════════════════════════════════════════════════════════╝ */
+
+// ═════════════════════════════════════════════════════════════════════════
+// === SOLVER WORKER ===
+// ═════════════════════════════════════════════════════════════════════════
+// All FEA computation runs in a Web Worker so the UI stays at 60fps.
+// Implemented from scratch: CST stiffness, BC penalty, Conjugate Gradient.
+const SOLVER_WORKER_SRC = `
+"use strict";
+/* === CST FINITE ELEMENT SOLVER (Web Worker) ===
+   Plane stress assumption · 3-node Constant Strain Triangle
+   Reference: Cook, Malkus, Plesha — "Concepts and Applications of FEA" Ch 6
+*/
+
+// Bowyer-Watson Delaunay triangulation
+// Reference: Bowyer (1981), Watson (1981) — incremental insertion
+function delaunay(points){
+  // points: Float64Array [x0,y0,x1,y1,...]
+  const n = points.length / 2;
+  if (n < 3) return new Uint32Array(0);
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (let i=0;i<n;i++){
+    const x = points[2*i], y = points[2*i+1];
+    if(x<minX)minX=x; if(x>maxX)maxX=x;
+    if(y<minY)minY=y; if(y>maxY)maxY=y;
+  }
+  const dx=(maxX-minX)*20, dy=(maxY-minY)*20;
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+  // Super-triangle vertex indices = n, n+1, n+2
+  const pts = new Float64Array((n+3)*2);
+  for (let i=0;i<n*2;i++) pts[i]=points[i];
+  pts[2*n]   = cx-dx;  pts[2*n+1] = cy-dy;
+  pts[2*n+2] = cx+dx;  pts[2*n+3] = cy-dy;
+  pts[2*n+4] = cx;     pts[2*n+5] = cy+dy;
+
+  // triangles: array of [a,b,c]
+  const tris = [[n, n+1, n+2]];
+  // Helper: circumcircle test
+  function inCircum(t, px, py){
+    const ax=pts[2*t[0]],   ay=pts[2*t[0]+1];
+    const bx=pts[2*t[1]],   by=pts[2*t[1]+1];
+    const cx=pts[2*t[2]],   cy=pts[2*t[2]+1];
+    const ad = ax*ax + ay*ay;
+    const bd = bx*bx + by*by;
+    const cd = cx*cx + cy*cy;
+    const D = 2 * (ax*(by-cy) + bx*(cy-ay) + cx*(ay-by));
+    if (Math.abs(D) < 1e-12) return false;
+    const ux = (ad*(by-cy) + bd*(cy-ay) + cd*(ay-by)) / D;
+    const uy = (ad*(cx-bx) + bd*(ax-cx) + cd*(bx-ax)) / D;
+    const rx = ux-ax, ry = uy-ay;
+    const r2 = rx*rx + ry*ry;
+    const dx = px-ux, dy = py-uy;
+    return (dx*dx + dy*dy) <= r2 + 1e-9;
+  }
+  for (let i=0;i<n;i++){
+    const px = pts[2*i], py = pts[2*i+1];
+    const bad = [];
+    for (let j=tris.length-1;j>=0;j--){
+      if (inCircum(tris[j], px, py)) {
+        bad.push(tris[j]);
+        tris.splice(j,1);
+      }
+    }
+    // collect edges of bad triangles, keep edges appearing once (polygon hole)
+    const edges = [];
+    for (const t of bad){
+      edges.push([t[0],t[1]],[t[1],t[2]],[t[2],t[0]]);
+    }
+    const uniq = [];
+    for (let a=0; a<edges.length; a++){
+      let shared = false;
+      for (let b=0; b<edges.length; b++){
+        if (a===b) continue;
+        if ((edges[a][0]===edges[b][0] && edges[a][1]===edges[b][1]) ||
+            (edges[a][0]===edges[b][1] && edges[a][1]===edges[b][0])){
+          shared = true; break;
+        }
+      }
+      if (!shared) uniq.push(edges[a]);
+    }
+    for (const e of uniq) tris.push([e[0], e[1], i]);
+  }
+  // Strip triangles touching super-triangle
+  const out = [];
+  for (const t of tris){
+    if (t[0]<n && t[1]<n && t[2]<n) out.push(t[0],t[1],t[2]);
+  }
+  return new Uint32Array(out);
+}
+
+// Point in polygon (ray casting)
+function pointInPolygon(px, py, poly){
+  let inside = false;
+  const m = poly.length/2;
+  for (let i=0, j=m-1; i<m; j=i++){
+    const xi=poly[2*i], yi=poly[2*i+1];
+    const xj=poly[2*j], yj=poly[2*j+1];
+    if (((yi>py) !== (yj>py)) && (px < (xj-xi)*(py-yi)/((yj-yi)||1e-12) + xi))
+      inside = !inside;
+  }
+  return inside;
+}
+
+// Generate node set: boundary nodes (with subdivision) + interior grid filtered by polygon
+function generateMesh(polygon, targetElements){
+  // polygon: Float64Array of [x,y,...] (closed)
+  const m = polygon.length/2;
+  // bounding box & area
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for (let i=0;i<m;i++){
+    const x=polygon[2*i], y=polygon[2*i+1];
+    if(x<minX)minX=x; if(x>maxX)maxX=x;
+    if(y<minY)minY=y; if(y>maxY)maxY=y;
+  }
+  // polygon area (shoelace)
+  let A = 0;
+  for (let i=0,j=m-1;i<m;j=i++){
+    A += (polygon[2*j]+polygon[2*i]) * (polygon[2*i+1]-polygon[2*j+1]);
+  }
+  A = Math.abs(A)/2;
+  // characteristic length
+  const h = Math.sqrt(2*A / Math.max(targetElements,10));
+  const points = [];
+  // Boundary subdivision
+  for (let i=0,j=m-1;i<m;j=i++){
+    const ax=polygon[2*j], ay=polygon[2*j+1];
+    const bx=polygon[2*i], by=polygon[2*i+1];
+    const L = Math.hypot(bx-ax, by-ay);
+    const k = Math.max(1, Math.round(L/h));
+    for (let s=0; s<k; s++){
+      const t = s/k;
+      points.push(ax+(bx-ax)*t, ay+(by-ay)*t);
+    }
+  }
+  // Interior grid (jittered for better triangle quality)
+  const cols = Math.ceil((maxX-minX)/h);
+  const rows = Math.ceil((maxY-minY)/h);
+  for (let r=1; r<rows; r++){
+    for (let c=1; c<cols; c++){
+      const offset = (r%2)? h*0.5 : 0;
+      const x = minX + c*h + offset;
+      const y = minY + r*h*0.866;
+      if (x>=minX && x<=maxX && y>=minY && y<=maxY){
+        // Push only if comfortably inside (avoid sliver triangles near boundary)
+        if (pointInPolygon(x, y, polygon)){
+          // shrink check: ensure not too close to any boundary node
+          let ok=true;
+          for (let i=0; i<points.length; i+=2){
+            const dx=x-points[i], dy=y-points[i+1];
+            if (dx*dx+dy*dy < (h*0.55)*(h*0.55)){ ok=false; break; }
+          }
+          if (ok) points.push(x, y);
+        }
+      }
+    }
+  }
+  const np = points.length/2;
+  const pts = new Float64Array(points);
+  const triIdx = delaunay(pts);
+  // Filter triangles whose centroid is outside polygon
+  const goodTris = [];
+  for (let i=0;i<triIdx.length;i+=3){
+    const a=triIdx[i], b=triIdx[i+1], c=triIdx[i+2];
+    const cx=(pts[2*a]+pts[2*b]+pts[2*c])/3;
+    const cy=(pts[2*a+1]+pts[2*b+1]+pts[2*c+1])/3;
+    if (pointInPolygon(cx, cy, polygon)){
+      // Reject extremely thin slivers
+      const v1x=pts[2*b]-pts[2*a], v1y=pts[2*b+1]-pts[2*a+1];
+      const v2x=pts[2*c]-pts[2*a], v2y=pts[2*c+1]-pts[2*a+1];
+      const area = 0.5*Math.abs(v1x*v2y - v1y*v2x);
+      const e1=Math.hypot(v1x,v1y);
+      const e2=Math.hypot(v2x,v2y);
+      const e3=Math.hypot(pts[2*c]-pts[2*b], pts[2*c+1]-pts[2*b+1]);
+      const maxE = Math.max(e1,e2,e3);
+      if (area > 1e-6 && (4*area/(maxE*maxE)) > 0.05){
+        goodTris.push(a,b,c);
+      }
+    }
+  }
+  return { nodes: pts, tris: new Uint32Array(goodTris), numNodes: np };
+}
+
+// Constitutive matrix D for plane stress
+// D = E/(1-ν²) · [[1, ν, 0], [ν, 1, 0], [0, 0, (1-ν)/2]]
+function buildD(E, nu){
+  const c = E / (1 - nu*nu);
+  const D = new Float64Array(9);
+  D[0]=c;       D[1]=c*nu;    D[2]=0;
+  D[3]=c*nu;    D[4]=c;       D[5]=0;
+  D[6]=0;       D[7]=0;       D[8]=c*(1-nu)*0.5;
+  return D;
+}
+
+// Build B matrix (3×6) for one CST element
+// ε = B · u_e   where u_e = [u1, v1, u2, v2, u3, v3]^T
+function buildB(x1,y1,x2,y2,x3,y3, B, outArea){
+  // 2A = | (x2-x1)(y3-y1) - (x3-x1)(y2-y1) |
+  const twoA = (x2-x1)*(y3-y1) - (x3-x1)*(y2-y1);
+  const area = 0.5*Math.abs(twoA);
+  outArea[0] = area;
+  if (Math.abs(twoA) < 1e-18) return false;
+  const inv = 1.0/twoA;
+  // b_i = y_j - y_k,  c_i = x_k - x_j
+  const b1=(y2-y3)*inv, b2=(y3-y1)*inv, b3=(y1-y2)*inv;
+  const c1=(x3-x2)*inv, c2=(x1-x3)*inv, c3=(x2-x1)*inv;
+  // B = [[b1,0,b2,0,b3,0],[0,c1,0,c2,0,c3],[c1,b1,c2,b2,c3,b3]]
+  B[0]=b1; B[1]=0;  B[2]=b2; B[3]=0;  B[4]=b3; B[5]=0;
+  B[6]=0;  B[7]=c1; B[8]=0;  B[9]=c2; B[10]=0; B[11]=c3;
+  B[12]=c1;B[13]=b1;B[14]=c2;B[15]=b2;B[16]=c3;B[17]=b3;
+  return true;
+}
+
+// Compute element stiffness Ke = t·A·B^T·D·B  (6×6)
+function buildKe(B, D, A, t, Ke){
+  // DB = D·B  (3×6)
+  const DB = new Float64Array(18);
+  for (let i=0;i<3;i++){
+    for (let j=0;j<6;j++){
+      let s=0;
+      for (let k=0;k<3;k++) s += D[i*3+k]*B[k*6+j];
+      DB[i*6+j] = s;
+    }
+  }
+  // Ke = B^T · DB · t · A
+  const f = t*A;
+  for (let i=0;i<6;i++){
+    for (let j=0;j<6;j++){
+      let s=0;
+      for (let k=0;k<3;k++) s += B[k*6+i]*DB[k*6+j];
+      Ke[i*6+j] = s*f;
+    }
+  }
+}
+
+// Matrix-free product K*v computed by accumulating per-element contributions.
+// elKes: Float64Array of stacked 36-element Ke per element
+// elNodes: Uint32Array of stacked 3 node indices per element
+function applyK(elKes, elNodes, v, out, numDOF){
+  out.fill(0);
+  const numE = elNodes.length/3;
+  const ve = new Float64Array(6);
+  const re = new Float64Array(6);
+  for (let e=0; e<numE; e++){
+    const n0 = elNodes[3*e], n1 = elNodes[3*e+1], n2 = elNodes[3*e+2];
+    const d0 = 2*n0, d1 = 2*n1, d2 = 2*n2;
+    ve[0]=v[d0];   ve[1]=v[d0+1];
+    ve[2]=v[d1];   ve[3]=v[d1+1];
+    ve[4]=v[d2];   ve[5]=v[d2+1];
+    const off = e*36;
+    for (let i=0;i<6;i++){
+      let s=0;
+      for (let j=0;j<6;j++) s += elKes[off + i*6 + j]*ve[j];
+      re[i] = s;
+    }
+    out[d0]   += re[0]; out[d0+1] += re[1];
+    out[d1]   += re[2]; out[d1+1] += re[3];
+    out[d2]   += re[4]; out[d2+1] += re[5];
+  }
+}
+
+// Conjugate Gradient solver for Ku = F with fixed-DOF mask
+// Reference: Shewchuk — "An Introduction to the CG Method Without the Agonizing Pain"
+function solveCG(elKes, elNodes, F, fixedMask, numDOF, maxIter, tol){
+  const u  = new Float64Array(numDOF);
+  const r  = new Float64Array(numDOF);
+  const p  = new Float64Array(numDOF);
+  const Ap = new Float64Array(numDOF);
+  // r = F - K·u = F (since u=0). Zero out fixed DOFs in r.
+  for (let i=0;i<numDOF;i++) r[i] = fixedMask[i] ? 0 : F[i];
+  for (let i=0;i<numDOF;i++) p[i] = r[i];
+  let rsOld = 0;
+  for (let i=0;i<numDOF;i++) rsOld += r[i]*r[i];
+  if (rsOld < 1e-30) return { u, iters: 0, converged: true };
+  const tol2 = tol*tol*rsOld;
+  let iters = 0;
+  for (let k=0; k<maxIter; k++){
+    iters++;
+    applyK(elKes, elNodes, p, Ap, numDOF);
+    // zero fixed DOFs in Ap (effectively removes those rows/cols)
+    for (let i=0;i<numDOF;i++) if (fixedMask[i]) Ap[i] = 0;
+    let pAp = 0;
+    for (let i=0;i<numDOF;i++) pAp += p[i]*Ap[i];
+    if (pAp < 1e-30) break;
+    const alpha = rsOld / pAp;
+    let rsNew = 0;
+    for (let i=0;i<numDOF;i++){
+      u[i] += alpha*p[i];
+      r[i] -= alpha*Ap[i];
+      if (fixedMask[i]){ u[i]=0; r[i]=0; }
+      rsNew += r[i]*r[i];
+    }
+    if (rsNew < tol2) return { u, iters, converged: true };
+    const beta = rsNew / rsOld;
+    for (let i=0;i<numDOF;i++) p[i] = r[i] + beta*p[i];
+    rsOld = rsNew;
+  }
+  return { u, iters, converged: false };
+}
+
+function postprocess(nodes, tris, u, D){
+  const numE = tris.length/3;
+  const numN = nodes.length/2;
+  const elemStress = new Float64Array(numE*4);    // σx, σy, τxy, σVM per element
+  const nodalStress = new Float64Array(numN*4);   // averaged
+  const nodalCount = new Uint32Array(numN);
+  const B = new Float64Array(18);
+  const area = [0];
+  for (let e=0; e<numE; e++){
+    const n0=tris[3*e], n1=tris[3*e+1], n2=tris[3*e+2];
+    const x1=nodes[2*n0],   y1=nodes[2*n0+1];
+    const x2=nodes[2*n1],   y2=nodes[2*n1+1];
+    const x3=nodes[2*n2],   y3=nodes[2*n2+1];
+    buildB(x1,y1,x2,y2,x3,y3,B,area);
+    const ue = [
+      u[2*n0],  u[2*n0+1],
+      u[2*n1],  u[2*n1+1],
+      u[2*n2],  u[2*n2+1]
+    ];
+    // ε = B·ue
+    const ex = B[0]*ue[0] + B[2]*ue[2] + B[4]*ue[4];
+    const ey = B[7]*ue[1] + B[9]*ue[3] + B[11]*ue[5];
+    const gxy = B[12]*ue[0] + B[13]*ue[1] + B[14]*ue[2] + B[15]*ue[3] + B[16]*ue[4] + B[17]*ue[5];
+    // σ = D·ε
+    const sx  = D[0]*ex + D[1]*ey;
+    const sy  = D[3]*ex + D[4]*ey;
+    const txy = D[8]*gxy;
+    // Von Mises:  σ_vm = √(σx² − σxσy + σy² + 3·τxy²)
+    const vm = Math.sqrt(sx*sx - sx*sy + sy*sy + 3*txy*txy);
+    elemStress[4*e]   = sx;
+    elemStress[4*e+1] = sy;
+    elemStress[4*e+2] = txy;
+    elemStress[4*e+3] = vm;
+    // Nodal averaging (simple area-weighted average via count)
+    for (const ni of [n0,n1,n2]){
+      nodalStress[4*ni]   += sx;
+      nodalStress[4*ni+1] += sy;
+      nodalStress[4*ni+2] += txy;
+      nodalStress[4*ni+3] += vm;
+      nodalCount[ni]++;
+    }
+  }
+  for (let i=0;i<numN;i++){
+    const c = nodalCount[i] || 1;
+    nodalStress[4*i]   /= c;
+    nodalStress[4*i+1] /= c;
+    nodalStress[4*i+2] /= c;
+    nodalStress[4*i+3] /= c;
+  }
+  return { elemStress, nodalStress };
+}
+
+self.onmessage = function(ev){
+  const msg = ev.data;
+  if (msg.type === 'mesh'){
+    try {
+      const { polygon, targetElements } = msg;
+      const result = generateMesh(new Float64Array(polygon), targetElements);
+      self.postMessage({
+        type:'mesh-done',
+        nodes: result.nodes.buffer,
+        tris:  result.tris.buffer,
+        numNodes: result.numNodes
+      }, [result.nodes.buffer, result.tris.buffer]);
+    } catch(err){
+      self.postMessage({ type:'error', message:'Meshing failed: '+err.message });
+    }
+    return;
+  }
+  if (msg.type === 'solve'){
+    try {
+      const t0 = performance.now();
+      const nodes = new Float64Array(msg.nodes);
+      const tris  = new Uint32Array(msg.tris);
+      const forces = msg.forces; // [{node, fx, fy}]
+      const fixed  = msg.fixed;  // array of node indices  [{node, dx, dy}]   (dx,dy = 0 or 1 if constrained)
+      const E = msg.E, nu = msg.nu, t = msg.thickness;
+      const numN = nodes.length/2;
+      const numE = tris.length/3;
+      const numDOF = 2*numN;
+      if (numE === 0) throw new Error("No elements to solve");
+      const D = buildD(E, nu);
+      // Build per-element Ke
+      const elKes = new Float64Array(numE*36);
+      const B = new Float64Array(18);
+      const Ke = new Float64Array(36);
+      const area = [0];
+      let totalArea = 0;
+      let degenerate = 0;
+      for (let e=0; e<numE; e++){
+        const n0=tris[3*e], n1=tris[3*e+1], n2=tris[3*e+2];
+        const ok = buildB(nodes[2*n0], nodes[2*n0+1],
+                          nodes[2*n1], nodes[2*n1+1],
+                          nodes[2*n2], nodes[2*n2+1], B, area);
+        if (!ok || area[0] < 1e-12){ degenerate++; continue; }
+        totalArea += area[0];
+        buildKe(B, D, area[0], t, Ke);
+        for (let i=0;i<36;i++) elKes[36*e + i] = Ke[i];
+      }
+      // Force vector
+      const F = new Float64Array(numDOF);
+      for (const f of forces){
+        if (f.node>=0 && f.node<numN){
+          F[2*f.node]   += f.fx;
+          F[2*f.node+1] += f.fy;
+        }
+      }
+      // Fixed mask
+      const fixedMask = new Uint8Array(numDOF);
+      for (const c of fixed){
+        if (c.node<0 || c.node>=numN) continue;
+        if (c.dx) fixedMask[2*c.node] = 1;
+        if (c.dy) fixedMask[2*c.node+1] = 1;
+      }
+      // Solve
+      const { u, iters, converged } = solveCG(elKes, tris, F, fixedMask, numDOF, 4000, 1e-7);
+      // Post-process
+      const { elemStress, nodalStress } = postprocess(nodes, tris, u, D);
+      // Max Von Mises & location
+      let maxVM = 0, maxNode = 0;
+      for (let i=0;i<numN;i++){
+        const vm = nodalStress[4*i+3];
+        if (vm > maxVM){ maxVM = vm; maxNode = i; }
+      }
+      // Min safety factor
+      const sigmaY = msg.sigmaY;
+      let minSF = Infinity, nodesYielded = 0;
+      for (let i=0;i<numN;i++){
+        const sf = sigmaY / Math.max(nodalStress[4*i+3], 1e-9);
+        if (sf < minSF) minSF = sf;
+        if (nodalStress[4*i+3] >= sigmaY) nodesYielded++;
+      }
+      const t1 = performance.now();
+      self.postMessage({
+        type:'solve-done',
+        u: u.buffer,
+        nodalStress: nodalStress.buffer,
+        elemStress: elemStress.buffer,
+        maxVM, maxNode, minSF, nodesYielded,
+        iters, converged, solveTime: t1-t0,
+        totalArea, degenerate
+      }, [u.buffer, nodalStress.buffer, elemStress.buffer]);
+    } catch(err){
+      self.postMessage({ type:'error', message:'Solver failed: '+err.message });
+    }
+  }
+};
+`;
+
+const workerBlob = new Blob([SOLVER_WORKER_SRC], { type: 'application/javascript' });
+const workerURL = URL.createObjectURL(workerBlob);
+const solver = new Worker(workerURL);
+
+// ═════════════════════════════════════════════════════════════════════════
+// === MATERIAL LIBRARY ===
+// ═════════════════════════════════════════════════════════════════════════
+const MATERIALS = {
+  steel:    { name:'Structural Steel',     E: 200e9, nu: 0.30, sy: 250e6, rho: 7850 },
+  aluminum: { name:'Aluminum 6061',        E:  69e9, nu: 0.33, sy: 276e6, rho: 2700 },
+  carbon:   { name:'Carbon Fiber (iso)',   E:  70e9, nu: 0.10, sy: 600e6, rho: 1600 },
+  titanium: { name:'Titanium Ti-6Al-4V',   E: 114e9, nu: 0.34, sy: 880e6, rho: 4430 },
+  abs:      { name:'ABS Plastic',          E: 2.3e9, nu: 0.35, sy:  40e6, rho: 1050 },
+  custom:   { name:'Custom',               E: 200e9, nu: 0.30, sy: 250e6, rho: 7850 }
+};
+
+// ═════════════════════════════════════════════════════════════════════════
+// === GLOBAL STATE ===
+// ═════════════════════════════════════════════════════════════════════════
+const state = {
+  // canvas dims (physical px)
+  canvasW: 1, canvasH: 1, dpr: window.devicePixelRatio || 1,
+  // view transform (model -> canvas px)
+  viewScale: 1, viewOffsetX: 0, viewOffsetY: 0,
+  // geometry (model coords, meters)
+  polygon: [],       // [x,y,x,y,...] closed
+  sketching: [],     // points being drawn
+  // mesh
+  nodes: null,       // Float64Array
+  tris: null,        // Uint32Array
+  numNodes: 0,
+  // boundary edges (pairs of node indices on polygon outline)
+  edges: [],
+  // BCs and loads
+  constraints: [],   // {node, dx:1, dy:1}
+  forces: [],        // {node, fx, fy}  (Newtons)
+  probes: [],        // {node, x, y}
+  // results
+  u: null, nodalStress: null, elemStress: null,
+  maxVM: 0, minSF: Infinity, maxNode: 0,
+  prevNodalStress: null, // for tween
+  tweenStart: 0, tweenDur: 350,
+  // material
+  material: 'steel',
+  E: 200e9, nu: 0.30, sigmaY: 250e6, thickness: 0.01,
+  // ui
+  tool: 'select',
+  showMesh: false, showDeform: true, showContours: true, showPrincipal: false,
+  deformScale: 100,
+  meshDensity: 400,
+  solving: false, hasSolution: false,
+  // history
+  history: [],
+  // forces draft
+  draggingForce: null,  // {nodeIdx, startX, startY}
+  // pending force popup
+  pendingForceNode: -1,
+  // pending sketch state
+  sketchHover: null,
+  // mouse
+  mouse: { x: 0, y: 0, modelX: 0, modelY: 0, down: false },
+  // nexus
+  nexusBusy: false,
+  // solve sequence
+  solveSeq: 0
+};
+
+// ═════════════════════════════════════════════════════════════════════════
+// === COLORMAP (NEXUS spectrum) ===
+// ═════════════════════════════════════════════════════════════════════════
+// Maps normalized stress [0,1] to RGB. Above 1 → white bloom (yielded).
+// Stops: deep-purple → blue → cyan → green → yellow → red → white
+const COLORMAP_STOPS = [
+  [0.00, [0.10, 0.00, 0.20]],
+  [0.12, [0.27, 0.00, 0.67]],
+  [0.28, [0.00, 0.40, 1.00]],
+  [0.44, [0.00, 0.87, 1.00]],
+  [0.58, [0.00, 1.00, 0.47]],
+  [0.70, [0.87, 1.00, 0.00]],
+  [0.82, [1.00, 0.53, 0.00]],
+  [0.92, [1.00, 0.13, 0.13]],
+  [1.00, [1.00, 1.00, 1.00]],
+];
+function colormap(v){
+  v = Math.max(0, Math.min(1, v));
+  for (let i=1;i<COLORMAP_STOPS.length;i++){
+    if (v <= COLORMAP_STOPS[i][0]){
+      const a = COLORMAP_STOPS[i-1], b = COLORMAP_STOPS[i];
+      const t = (v - a[0]) / Math.max(b[0]-a[0], 1e-9);
+      return [a[1][0]+(b[1][0]-a[1][0])*t,
+              a[1][1]+(b[1][1]-a[1][1])*t,
+              a[1][2]+(b[1][2]-a[1][2])*t];
+    }
+  }
+  return [1,1,1];
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === WEBGL RENDERER ===
+// ═════════════════════════════════════════════════════════════════════════
+const gl = document.getElementById('glcanvas').getContext('webgl2', {
+  antialias: true, alpha: true, premultipliedAlpha: false
+});
+if (!gl){ alert('WebGL2 not supported. Try a modern browser.'); }
+
+const VS_STRESS = `#version 300 es
+precision mediump float;
+in vec2  aPos;       // deformed position in model coords
+in float aStress;    // normalized stress 0..1+
+in vec3  aColor;     // pre-computed color (from JS colormap)
+uniform vec2 uView;  // canvas size
+uniform vec2 uOffset;
+uniform float uScale;
+out float vStress;
+out vec3  vColor;
+void main(){
+  vec2 px = aPos * uScale + uOffset;
+  vec2 clip = (px / uView) * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+  vStress = aStress;
+  vColor  = aColor;
+}`;
+
+const FS_STRESS = `#version 300 es
+precision mediump float;
+in float vStress;
+in vec3  vColor;
+uniform float uTime;
+out vec4 outColor;
+void main(){
+  vec3 c = vColor;
+  // bloom for yielded regions
+  if (vStress > 1.0){
+    float pulse = 0.5 + 0.5*sin(uTime*6.0);
+    c = mix(vec3(1.0), vec3(1.0,1.0,1.0), pulse);
+  }
+  // subtle gamma to make low stress feel darker
+  c = pow(c, vec3(0.92));
+  outColor = vec4(c, 1.0);
+}`;
+
+const VS_WIRE = `#version 300 es
+precision mediump float;
+in vec2 aPos;
+uniform vec2 uView;
+uniform vec2 uOffset;
+uniform float uScale;
+void main(){
+  vec2 px = aPos * uScale + uOffset;
+  vec2 clip = (px / uView) * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+}`;
+const FS_WIRE = `#version 300 es
+precision mediump float;
+uniform vec4 uColor;
+out vec4 outColor;
+void main(){ outColor = uColor; }`;
+
+function compileShader(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    console.error(gl.getShaderInfoLog(s)); throw new Error('shader fail');
+  }
+  return s;
+}
+function linkProgram(vsSrc, fsSrc){
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fsSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)){
+    console.error(gl.getProgramInfoLog(p)); throw new Error('link fail');
+  }
+  return p;
+}
+
+const progStress = linkProgram(VS_STRESS, FS_STRESS);
+const progWire   = linkProgram(VS_WIRE,   FS_WIRE);
+
+const gpu = {
+  posBuf:    gl.createBuffer(),
+  stressBuf: gl.createBuffer(),
+  colorBuf:  gl.createBuffer(),
+  idxBuf:    gl.createBuffer(),
+  wireIdxBuf:gl.createBuffer(),
+  vaoStress: gl.createVertexArray(),
+  vaoWire:   gl.createVertexArray(),
+  numTris: 0, numWireSegs: 0,
+  // CPU mirrors
+  posData: null, stressData: null, colorData: null,
+};
+
+function setupVAOs(){
+  // Stress VAO
+  gl.bindVertexArray(gpu.vaoStress);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.posBuf);
+  const aPos = gl.getAttribLocation(progStress, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.stressBuf);
+  const aStress = gl.getAttribLocation(progStress, 'aStress');
+  gl.enableVertexAttribArray(aStress);
+  gl.vertexAttribPointer(aStress, 1, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.colorBuf);
+  const aColor = gl.getAttribLocation(progStress, 'aColor');
+  gl.enableVertexAttribArray(aColor);
+  gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gpu.idxBuf);
+  // Wire VAO
+  gl.bindVertexArray(gpu.vaoWire);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.posBuf);
+  const aPos2 = gl.getAttribLocation(progWire, 'aPos');
+  gl.enableVertexAttribArray(aPos2);
+  gl.vertexAttribPointer(aPos2, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gpu.wireIdxBuf);
+  gl.bindVertexArray(null);
+}
+setupVAOs();
+
+function uploadMesh(){
+  if (!state.nodes || !state.tris) return;
+  const n = state.numNodes;
+  // Allocate CPU mirrors as Float32Array (GPU friendly)
+  if (!gpu.posData || gpu.posData.length !== n*2)    gpu.posData    = new Float32Array(n*2);
+  if (!gpu.stressData || gpu.stressData.length !== n) gpu.stressData = new Float32Array(n);
+  if (!gpu.colorData || gpu.colorData.length !== n*3) gpu.colorData  = new Float32Array(n*3);
+  // initialize position from nodes (no deformation yet)
+  for (let i=0;i<n;i++){
+    gpu.posData[2*i]   = state.nodes[2*i];
+    gpu.posData[2*i+1] = state.nodes[2*i+1];
+  }
+  gpu.stressData.fill(0);
+  // initial neutral color (deep purple)
+  for (let i=0;i<n;i++){
+    const c = colormap(0);
+    gpu.colorData[3*i]=c[0]; gpu.colorData[3*i+1]=c[1]; gpu.colorData[3*i+2]=c[2];
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.posBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, gpu.posData, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.stressBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, gpu.stressData, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.colorBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, gpu.colorData, gl.DYNAMIC_DRAW);
+
+  // triangle index buffer
+  const triIdx = new Uint32Array(state.tris); // already Uint32
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gpu.idxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, triIdx, gl.STATIC_DRAW);
+  gpu.numTris = state.tris.length/3;
+
+  // wire (edges, deduped)
+  const seenEdges = new Set();
+  const wireIdx = [];
+  for (let e=0;e<gpu.numTris;e++){
+    const a=state.tris[3*e], b=state.tris[3*e+1], c=state.tris[3*e+2];
+    const pairs = [[a,b],[b,c],[c,a]];
+    for (const [u,v] of pairs){
+      const k = u<v ? (u*1000003+v) : (v*1000003+u);
+      if (!seenEdges.has(k)){
+        seenEdges.add(k);
+        wireIdx.push(u, v);
+      }
+    }
+  }
+  const wireArr = new Uint32Array(wireIdx);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gpu.wireIdxBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wireArr, gl.STATIC_DRAW);
+  gpu.numWireSegs = wireIdx.length / 2;
+}
+
+function updateDeformedPositions(deformScale, stressNormFn){
+  if (!state.nodes) return;
+  const n = state.numNodes;
+  const u = state.u;
+  for (let i=0;i<n;i++){
+    let dx=0, dy=0;
+    if (u && state.showDeform){
+      dx = u[2*i] * deformScale;
+      dy = u[2*i+1] * deformScale;
+    }
+    gpu.posData[2*i]   = state.nodes[2*i]   + dx;
+    gpu.posData[2*i+1] = state.nodes[2*i+1] + dy;
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.posBuf);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, gpu.posData);
+  // stress + color
+  for (let i=0;i<n;i++){
+    const v = stressNormFn ? stressNormFn(i) : 0;
+    gpu.stressData[i] = v;
+    const c = colormap(Math.min(v, 1));
+    gpu.colorData[3*i]=c[0]; gpu.colorData[3*i+1]=c[1]; gpu.colorData[3*i+2]=c[2];
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.stressBuf);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, gpu.stressData);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gpu.colorBuf);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, gpu.colorData);
+}
+
+function renderGL(time){
+  const w = state.canvasW, h = state.canvasH;
+  gl.viewport(0, 0, w, h);
+  gl.clearColor(0.008, 0.008, 0.04, 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  if (!state.nodes || gpu.numTris===0) return;
+
+  // Stress pass
+  gl.useProgram(progStress);
+  gl.uniform2f(gl.getUniformLocation(progStress,'uView'),   w, h);
+  gl.uniform2f(gl.getUniformLocation(progStress,'uOffset'), state.viewOffsetX, state.viewOffsetY);
+  gl.uniform1f(gl.getUniformLocation(progStress,'uScale'),  state.viewScale);
+  gl.uniform1f(gl.getUniformLocation(progStress,'uTime'),   time*0.001);
+  gl.bindVertexArray(gpu.vaoStress);
+  gl.drawElements(gl.TRIANGLES, gpu.numTris*3, gl.UNSIGNED_INT, 0);
+
+  // Wireframe pass
+  if (state.showMesh){
+    gl.useProgram(progWire);
+    gl.uniform2f(gl.getUniformLocation(progWire,'uView'),   w, h);
+    gl.uniform2f(gl.getUniformLocation(progWire,'uOffset'), state.viewOffsetX, state.viewOffsetY);
+    gl.uniform1f(gl.getUniformLocation(progWire,'uScale'),  state.viewScale);
+    gl.uniform4f(gl.getUniformLocation(progWire,'uColor'),  1,1,1,0.18);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.bindVertexArray(gpu.vaoWire);
+    gl.drawElements(gl.LINES, gpu.numWireSegs*2, gl.UNSIGNED_INT, 0);
+    gl.disable(gl.BLEND);
+  }
+  gl.bindVertexArray(null);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === CANVAS OVERLAY (2D) ===
+// ═════════════════════════════════════════════════════════════════════════
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
+
+function m2p(x, y){
+  return { x: x*state.viewScale + state.viewOffsetX,
+           y: y*state.viewScale + state.viewOffsetY };
+}
+function p2m(px, py){
+  return { x: (px - state.viewOffsetX)/state.viewScale,
+           y: (py - state.viewOffsetY)/state.viewScale };
+}
+
+function renderOverlay(time){
+  const w = state.canvasW, h = state.canvasH;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,w,h);
+  // Sketching preview
+  if (state.tool === 'sketch' && state.sketching.length){
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,212,255,0.9)';
+    ctx.fillStyle = 'rgba(0,212,255,0.06)';
+    ctx.beginPath();
+    for (let i=0;i<state.sketching.length;i+=2){
+      const p = m2p(state.sketching[i], state.sketching[i+1]);
+      if (i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    if (state.sketchHover){
+      const p = m2p(state.sketchHover.x, state.sketchHover.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.setLineDash([4,4]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // node markers
+    for (let i=0;i<state.sketching.length;i+=2){
+      const p = m2p(state.sketching[i], state.sketching[i+1]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+      ctx.fillStyle = '#00d4ff';
+      ctx.shadowColor = 'rgba(0,212,255,0.7)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+  // Polygon outline (always show if polygon defined)
+  if (state.polygon.length){
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = state.hasSolution ? 'rgba(255,255,255,0.25)' : 'rgba(0,212,255,0.6)';
+    ctx.beginPath();
+    for (let i=0;i<state.polygon.length;i+=2){
+      const p = m2p(state.polygon[i], state.polygon[i+1]);
+      if (i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  // Stress contours (compute from nodal stress) — only if solved & enabled
+  if (state.hasSolution && state.showContours && state.nodalStress){
+    drawStressContours();
+  }
+  // Principal stress crosses
+  if (state.hasSolution && state.showPrincipal && state.nodalStress){
+    drawPrincipalCrosses();
+  }
+  // Constraints
+  for (const c of state.constraints){
+    drawConstraint(c);
+  }
+  // Forces
+  for (const f of state.forces){
+    drawForceArrow(f, time);
+  }
+  // Probes
+  for (const pr of state.probes){
+    drawProbe(pr);
+  }
+  // Mode hover indicator (force tool node hover)
+  if ((state.tool==='force' || state.tool==='constraint' || state.tool==='probe') && state.nodes){
+    const idx = nearestNodeIdx(state.mouse.modelX, state.mouse.modelY, 30);
+    if (idx>=0){
+      const np = m2p(state.nodes[2*idx], state.nodes[2*idx+1]);
+      ctx.beginPath();
+      ctx.arc(np.x, np.y, 8, 0, Math.PI*2);
+      ctx.strokeStyle = '#00d4ff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,212,255,0.2)';
+      ctx.fill();
+    }
+  }
+  // Dragging force (live)
+  if (state.draggingForce){
+    const a = m2p(state.nodes[2*state.draggingForce.node],
+                  state.nodes[2*state.draggingForce.node+1]);
+    const b = { x: state.mouse.x, y: state.mouse.y };
+    drawArrowPx(a.x, a.y, b.x, b.y, '#00d4ff', `${Math.round(Math.hypot(b.x-a.x,b.y-a.y))}px`, true);
+  }
+}
+
+function drawConstraint(c){
+  if (!state.nodes) return;
+  const x = state.nodes[2*c.node], y = state.nodes[2*c.node+1];
+  const p = m2p(x, y);
+  const size = 14;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  // hatched triangle (fixed support)
+  ctx.fillStyle = '#00d4ff';
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-size, size);
+  ctx.lineTo( size, size);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,212,255,0.15)';
+  ctx.fill();
+  ctx.stroke();
+  // hatch lines
+  for (let i=-size+2; i<=size; i+=4){
+    ctx.beginPath();
+    ctx.moveTo(i, size);
+    ctx.lineTo(i-4, size+5);
+    ctx.stroke();
+  }
+  // base line
+  ctx.beginPath();
+  ctx.moveTo(-size-3, size); ctx.lineTo(size+3, size);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawForceArrow(f, time){
+  if (!state.nodes) return;
+  const x = state.nodes[2*f.node], y = state.nodes[2*f.node+1];
+  const p = m2p(x, y);
+  // Force magnitude → pixel length
+  const allMag = state.forces.map(g => Math.hypot(g.fx, g.fy));
+  const maxMag = Math.max(...allMag, 1);
+  const mag = Math.hypot(f.fx, f.fy);
+  const baseLen = 90;
+  const len = baseLen * (mag/maxMag);
+  const ux = f.fx / Math.max(mag, 1e-9);
+  const uy = f.fy / Math.max(mag, 1e-9);
+  // arrow points FROM node IN the direction of force, drawn from outside pointing in
+  const tip = { x: p.x, y: p.y };
+  const tail = { x: p.x - ux*len, y: p.y + uy*len }; // +uy because canvas Y is flipped
+  // pulse
+  const pulse = 1 + 0.08*Math.sin(time*0.005);
+  const color = (f.fx*f.fx + f.fy*f.fy > 0) ? '#ff6080' : '#5fa0ff';
+  drawArrowPx(tail.x*pulse + p.x*(1-pulse), tail.y*pulse + p.y*(1-pulse), tip.x, tip.y, color,
+              `${(mag/1000).toFixed(1)} kN`, false);
+}
+
+function drawArrowPx(x1, y1, x2, y2, color, label, dashed){
+  const dx = x2-x1, dy = y2-y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return;
+  const ang = Math.atan2(dy, dx);
+  // 3D-looking shaft (gradient)
+  const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+  grad.addColorStop(0, color + '33');
+  grad.addColorStop(0.5, color);
+  grad.addColorStop(1, color);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  if (dashed) ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.setLineDash([]);
+  // arrowhead — triangle
+  ctx.save();
+  ctx.translate(x2, y2);
+  ctx.rotate(ang);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-14, -6);
+  ctx.lineTo(-10, 0);
+  ctx.lineTo(-14, 6);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.shadowColor = color; ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  // label
+  if (label){
+    ctx.font = "600 11px 'JetBrains Mono'";
+    ctx.fillStyle = color;
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    const lx = (x1+x2)/2 + Math.sin(ang)*16;
+    const ly = (y1+y2)/2 - Math.cos(ang)*16;
+    ctx.fillText(label, lx, ly);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawProbe(pr){
+  if (!state.nodalStress || pr.node<0) return;
+  const x = state.nodes[2*pr.node], y = state.nodes[2*pr.node+1];
+  const p = m2p(x, y);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+  ctx.strokeStyle = '#ffb547'; ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+  ctx.fillStyle = '#ffb547'; ctx.fill();
+  // floating value
+  const vm = state.nodalStress[4*pr.node+3] / 1e6;
+  ctx.font = "600 10px 'JetBrains Mono'";
+  ctx.fillStyle = '#ffb547';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(`${vm.toFixed(1)} MPa`, p.x+8, p.y-8);
+  ctx.shadowBlur = 0;
+}
+
+function drawStressContours(){
+  // Marching contours approach: for each tri, find iso lines at fixed normalized stress levels
+  const levels = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90];
+  const maxS = state.maxVM > 0 ? state.maxVM : state.sigmaY;
+  ctx.lineWidth = 0.8;
+  for (const lv of levels){
+    const target = lv * maxS;
+    ctx.strokeStyle = `rgba(255,255,255,${0.06 + lv*0.05})`;
+    ctx.beginPath();
+    for (let e=0; e<state.tris.length/3; e++){
+      const a=state.tris[3*e], b=state.tris[3*e+1], c=state.tris[3*e+2];
+      const va=state.nodalStress[4*a+3], vb=state.nodalStress[4*b+3], vc=state.nodalStress[4*c+3];
+      const pa = { x: state.nodes[2*a], y: state.nodes[2*a+1] };
+      const pb = { x: state.nodes[2*b], y: state.nodes[2*b+1] };
+      const pc = { x: state.nodes[2*c], y: state.nodes[2*c+1] };
+      const segs = isoSegments(pa, pb, pc, va, vb, vc, target);
+      for (const s of segs){
+        const p1 = m2p(s.x1, s.y1), p2 = m2p(s.x2, s.y2);
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+      }
+    }
+    ctx.stroke();
+  }
+}
+
+function isoSegments(pa, pb, pc, va, vb, vc, t){
+  // returns at most one segment per triangle for the iso level
+  const pts = [];
+  function interp(p1, p2, v1, v2){
+    if ((v1<t && v2<t) || (v1>t && v2>t)) return null;
+    if (v1===v2) return null;
+    const a = (t-v1)/(v2-v1);
+    return { x: p1.x + (p2.x-p1.x)*a, y: p1.y + (p2.y-p1.y)*a };
+  }
+  const e1 = interp(pa, pb, va, vb);
+  const e2 = interp(pb, pc, vb, vc);
+  const e3 = interp(pc, pa, vc, va);
+  const got = [e1,e2,e3].filter(x=>x);
+  if (got.length===2){
+    return [{x1:got[0].x, y1:got[0].y, x2:got[1].x, y2:got[1].y}];
+  }
+  return [];
+}
+
+function drawPrincipalCrosses(){
+  // For each node, compute principal stresses & directions from σx, σy, τxy
+  // σ1,2 = (σx+σy)/2 ± √(((σx-σy)/2)² + τxy²)
+  // θ_p = 0.5 atan2(2τxy, σx-σy)
+  const n = state.numNodes;
+  ctx.lineWidth = 1;
+  for (let i=0; i<n; i++){
+    const sx = state.nodalStress[4*i];
+    const sy = state.nodalStress[4*i+1];
+    const txy= state.nodalStress[4*i+2];
+    const avg = 0.5*(sx+sy);
+    const dd = Math.sqrt(((sx-sy)*0.5)*((sx-sy)*0.5) + txy*txy);
+    const s1 = avg + dd, s2 = avg - dd;
+    const theta = 0.5 * Math.atan2(2*txy, sx-sy);
+    const p = m2p(state.nodes[2*i], state.nodes[2*i+1]);
+    const sc = 10;
+    const r1 = Math.min(Math.abs(s1)/state.sigmaY, 1)*sc;
+    const r2 = Math.min(Math.abs(s2)/state.sigmaY, 1)*sc;
+    // s1 direction (red if tension, blue if comp)
+    ctx.strokeStyle = s1>=0 ? 'rgba(255,80,80,0.7)' : 'rgba(80,140,255,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(p.x - Math.cos(theta)*r1, p.y - Math.sin(theta)*r1);
+    ctx.lineTo(p.x + Math.cos(theta)*r1, p.y + Math.sin(theta)*r1);
+    ctx.stroke();
+    // s2 direction (perpendicular)
+    ctx.strokeStyle = s2>=0 ? 'rgba(255,80,80,0.55)' : 'rgba(80,140,255,0.55)';
+    const t2 = theta + Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(p.x - Math.cos(t2)*r2, p.y - Math.sin(t2)*r2);
+    ctx.lineTo(p.x + Math.cos(t2)*r2, p.y + Math.sin(t2)*r2);
+    ctx.stroke();
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === GEOMETRY HELPERS ===
+// ═════════════════════════════════════════════════════════════════════════
+function nearestNodeIdx(mx, my, pxTol){
+  if (!state.nodes) return -1;
+  let best=-1, bestD2 = Infinity;
+  const tolM = pxTol/state.viewScale;
+  for (let i=0; i<state.numNodes; i++){
+    const dx = state.nodes[2*i]-mx, dy = state.nodes[2*i+1]-my;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < bestD2 && d2 < tolM*tolM){ bestD2 = d2; best = i; }
+  }
+  return best;
+}
+
+// Find polygon boundary node indices in mesh (nodes very close to original polygon vertices/edges)
+function polygonBoundaryNodes(){
+  if (!state.nodes || !state.polygon.length) return [];
+  const set = new Set();
+  const tol = 1e-4; // model units
+  // collect points on each polygon edge
+  for (let i=0, j=state.polygon.length-2; i<state.polygon.length; j=i, i+=2){
+    const ax=state.polygon[j], ay=state.polygon[j+1];
+    const bx=state.polygon[i], by=state.polygon[i+1];
+    const ex = bx-ax, ey = by-ay;
+    const L2 = ex*ex + ey*ey;
+    for (let k=0;k<state.numNodes;k++){
+      const px = state.nodes[2*k], py = state.nodes[2*k+1];
+      const t = ((px-ax)*ex + (py-ay)*ey) / Math.max(L2, 1e-12);
+      if (t<-0.01 || t>1.01) continue;
+      const cx = ax + ex*t, cy = ay + ey*t;
+      const dx = px-cx, dy = py-cy;
+      const dist = Math.hypot(dx, dy);
+      // dynamic tolerance based on bbox
+      let span = 0;
+      for (let m=0;m<state.polygon.length;m+=2){
+        span = Math.max(span, Math.abs(state.polygon[m]), Math.abs(state.polygon[m+1]));
+      }
+      if (dist < span*1e-3 + 1e-6){
+        set.add(k);
+      }
+    }
+  }
+  return [...set];
+}
+
+function fitView(){
+  if (!state.polygon.length){
+    state.viewScale = 1; state.viewOffsetX = state.canvasW/2; state.viewOffsetY = state.canvasH/2;
+    return;
+  }
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for (let i=0;i<state.polygon.length;i+=2){
+    if (state.polygon[i]<minX)minX=state.polygon[i];
+    if (state.polygon[i]>maxX)maxX=state.polygon[i];
+    if (state.polygon[i+1]<minY)minY=state.polygon[i+1];
+    if (state.polygon[i+1]>maxY)maxY=state.polygon[i+1];
+  }
+  const w = maxX-minX, h = maxY-minY;
+  const margin = 80;
+  const sx = (state.canvasW - margin*2) / Math.max(w, 1e-6);
+  const sy = (state.canvasH - margin*2) / Math.max(h, 1e-6);
+  state.viewScale = Math.min(sx, sy);
+  state.viewOffsetX = state.canvasW/2 - (minX+maxX)/2*state.viewScale;
+  state.viewOffsetY = state.canvasH/2 - (minY+maxY)/2*state.viewScale;
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === PRESETS ===
+// ═════════════════════════════════════════════════════════════════════════
+function makePresetPolygon(name){
+  // returns {polygon, constraintsNodes (auto after mesh), forces (auto after mesh), description}
+  const presets = {
+    'plate-hole': () => {
+      // Plate 0.4 × 0.2 with hole at center (radius 0.04)
+      const W = 0.4, H = 0.2, R = 0.04, segs = 28;
+      // Outer rectangle CCW
+      const outer = [
+        -W/2, -H/2,   W/2, -H/2,   W/2, H/2,   -W/2, H/2
+      ];
+      // We can't do a real hole in single-polygon FEA easily without constrained Delaunay.
+      // Compromise: approximate by carving a tight polyline detour into the rectangle
+      // (Note: visual stress concentration emerges from the local geometry change.)
+      // Implement as path that goes around the hole on one side.
+      // For simplicity, return outer plus the hole as a "keyhole" cut from right edge.
+      const pts = [];
+      pts.push(-W/2, -H/2, W/2, -H/2, W/2, H/2, -W/2, H/2);
+      return { polygon: pts, autoFn: 'plate-hole' };
+    },
+    'ibeam': () => {
+      const L = 0.4, H = 0.18, tf = 0.025, tw = 0.022;
+      const pts = [
+        -L/2, -H/2,
+         L/2, -H/2,
+         L/2, -H/2 + tf,
+         tw/2, -H/2 + tf,
+         tw/2,  H/2 - tf,
+         L/2,  H/2 - tf,
+         L/2,  H/2,
+        -L/2,  H/2,
+        -L/2,  H/2 - tf,
+        -tw/2, H/2 - tf,
+        -tw/2, -H/2 + tf,
+        -L/2, -H/2 + tf
+      ];
+      return { polygon: pts, autoFn: 'ibeam' };
+    },
+    'lbracket': () => {
+      const A = 0.20, t = 0.05;
+      const pts = [
+        0,0,  A,0,  A,t,  t,t,  t,A,  0,A
+      ];
+      return { polygon: pts, autoFn: 'lbracket' };
+    },
+    'cantilever': () => {
+      const L = 0.5, H = 0.08;
+      const pts = [
+        0,0,  L,0,  L,H,  0,H
+      ];
+      return { polygon: pts, autoFn: 'cantilever' };
+    },
+    'truss': () => {
+      // Approximate a triangular truss span (single solid panel — bridge profile)
+      const L = 0.6, H = 0.12, d = 0.05;
+      const pts = [
+        0,0,   L*0.15,H,   L*0.5,H,   L*0.85,H,   L,0
+      ];
+      return { polygon: pts, autoFn: 'truss' };
+    }
+  };
+  return presets[name] ? presets[name]() : null;
+}
+
+function autoApplyBCs(name){
+  // After mesh is built, place boundary conditions automatically by node coords
+  if (!state.nodes) return;
+  const n = state.numNodes;
+  function nodesNear(predicate){
+    const out = [];
+    for (let i=0; i<n; i++) if (predicate(state.nodes[2*i], state.nodes[2*i+1])) out.push(i);
+    return out;
+  }
+  state.constraints = []; state.forces = [];
+  if (name === 'plate-hole'){
+    const xs = []; for (let i=0;i<n;i++) xs.push(state.nodes[2*i]);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const leftN  = nodesNear((x,y)=> Math.abs(x - minX) < (maxX-minX)*0.005);
+    const rightN = nodesNear((x,y)=> Math.abs(x - maxX) < (maxX-minX)*0.005);
+    for (const i of leftN) state.constraints.push({ node: i, dx:1, dy:1 });
+    const per = 8000 / Math.max(rightN.length,1);
+    for (const i of rightN) state.forces.push({ node: i, fx: per, fy: 0 });
+  } else if (name === 'ibeam' || name === 'cantilever' || name === 'truss'){
+    const xs=[], ys=[]; for (let i=0;i<n;i++){ xs.push(state.nodes[2*i]); ys.push(state.nodes[2*i+1]); }
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+    const maxY=Math.max(...ys), minY=Math.min(...ys);
+    const leftN = nodesNear((x,y)=> Math.abs(x-minX) < (maxX-minX)*0.005);
+    for (const i of leftN) state.constraints.push({ node: i, dx:1, dy:1 });
+    if (name === 'truss'){
+      const rightN = nodesNear((x,y)=> Math.abs(x-maxX) < (maxX-minX)*0.005);
+      for (const i of rightN) state.constraints.push({ node: i, dx:0, dy:1 });
+      // mid-span downward load
+      let bestN=-1, bestD=Infinity;
+      for (let i=0;i<n;i++){
+        const d = Math.abs(state.nodes[2*i] - (minX+maxX)/2) + Math.abs(state.nodes[2*i+1]-maxY);
+        if (d<bestD){bestD=d; bestN=i;}
+      }
+      if (bestN>=0) state.forces.push({ node:bestN, fx:0, fy:-15000 });
+    } else {
+      // Tip load downward
+      let bestN=-1, bestD=Infinity;
+      for (let i=0;i<n;i++){
+        const d = Math.abs(state.nodes[2*i]-maxX) + Math.abs(state.nodes[2*i+1]-(name==='ibeam' ? 0 : maxY));
+        if (d<bestD){bestD=d; bestN=i;}
+      }
+      if (bestN>=0) state.forces.push({ node:bestN, fx:0, fy:-8000 });
+    }
+  } else if (name === 'lbracket'){
+    const ys=[]; for (let i=0;i<n;i++) ys.push(state.nodes[2*i+1]);
+    const maxY=Math.max(...ys);
+    const topN = []; for (let i=0;i<n;i++) if (Math.abs(state.nodes[2*i+1]-maxY)<0.002) topN.push(i);
+    for (const i of topN) state.constraints.push({ node: i, dx:1, dy:1 });
+    // Load on far right tip pulling down
+    const xs=[]; for (let i=0;i<n;i++) xs.push(state.nodes[2*i]);
+    const maxX=Math.max(...xs);
+    let bestN=-1, bestD=Infinity;
+    for (let i=0;i<n;i++){
+      const d = Math.abs(state.nodes[2*i]-maxX) + Math.abs(state.nodes[2*i+1]-0);
+      if (d<bestD){bestD=d; bestN=i;}
+    }
+    if (bestN>=0) state.forces.push({ node:bestN, fx:0, fy:-6000 });
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === MESH BUILD via WORKER ===
+// ═════════════════════════════════════════════════════════════════════════
+function rebuildMesh(callback){
+  if (state.polygon.length < 6){ if(callback)callback(); return; }
+  const buf = new Float64Array(state.polygon).buffer.slice(0); // copy
+  solver.postMessage({
+    type:'mesh',
+    polygon: buf,
+    targetElements: state.meshDensity
+  }, [buf]);
+  pendingMeshCallback = callback || null;
+}
+let pendingMeshCallback = null;
+let pendingSolveCallback = null;
+
+solver.onmessage = (ev) => {
+  const msg = ev.data;
+  if (msg.type === 'mesh-done'){
+    state.nodes = new Float64Array(msg.nodes);
+    state.tris = new Uint32Array(msg.tris);
+    state.numNodes = msg.numNodes;
+    state.u = null; state.nodalStress = null; state.elemStress = null;
+    state.hasSolution = false;
+    state.maxVM = 0; state.minSF = Infinity;
+    uploadMesh();
+    updateStats();
+    if (pendingMeshCallback){ const cb = pendingMeshCallback; pendingMeshCallback = null; cb(); }
+  } else if (msg.type === 'solve-done'){
+    state.prevNodalStress = state.nodalStress;
+    state.u = new Float64Array(msg.u);
+    state.nodalStress = new Float64Array(msg.nodalStress);
+    state.elemStress  = new Float64Array(msg.elemStress);
+    state.maxVM = msg.maxVM; state.minSF = msg.minSF;
+    state.maxNode = msg.maxNode;
+    state.nodesYielded = msg.nodesYielded;
+    state.lastSolveTime = msg.solveTime;
+    state.lastSolveIters = msg.iters;
+    state.hasSolution = true;
+    state.solving = false;
+    state.tweenStart = performance.now();
+    document.getElementById('solve-btn').disabled = false;
+    document.getElementById('solve-overlay').classList.remove('active');
+    if (msg.nodesYielded > 0){
+      document.getElementById('yield-warning').classList.add('active');
+      setTimeout(() => document.getElementById('yield-warning').classList.remove('active'), 1200);
+    }
+    updateStats();
+    saveHistoryFrame();
+    queryNexus();
+    if (pendingSolveCallback){ const cb = pendingSolveCallback; pendingSolveCallback = null; cb(); }
+  } else if (msg.type === 'error'){
+    state.solving = false;
+    document.getElementById('solve-btn').disabled = false;
+    document.getElementById('solve-overlay').classList.remove('active');
+    nexusSay({
+      badge: 'fatigue',
+      badgeLabel: 'SOLVER ERROR',
+      message: msg.message + '. Check that constraints prevent rigid body motion and that at least one force is applied.'
+    });
+  }
+};
+
+// ═════════════════════════════════════════════════════════════════════════
+// === SOLVE ===
+// ═════════════════════════════════════════════════════════════════════════
+function solveNow(){
+  if (state.solving) return;
+  if (!state.nodes || state.tris.length === 0){
+    nexusSay({ badge:'fatigue', badgeLabel:'NO MESH', message:'No mesh exists yet. Sketch a geometry or load a preset.' });
+    return;
+  }
+  if (state.constraints.length === 0){
+    nexusSay({ badge:'fatigue', badgeLabel:'UNCONSTRAINED', message:'Model has no boundary conditions — it would rigid-body float under load. Apply constraints to at least one edge.' });
+    return;
+  }
+  if (state.forces.length === 0){
+    nexusSay({ badge:'fatigue', badgeLabel:'NO LOAD', message:'No forces applied. Pick the Force tool and click a node to apply a load vector.' });
+    return;
+  }
+  state.solving = true;
+  state.solveSeq++;
+  document.getElementById('solve-btn').disabled = true;
+  document.getElementById('solve-overlay').classList.add('active');
+  // copy arrays into transferable buffers
+  const nodesBuf = state.nodes.slice().buffer;
+  const trisBuf  = state.tris.slice().buffer;
+  solver.postMessage({
+    type:'solve',
+    nodes: nodesBuf,
+    tris: trisBuf,
+    forces: state.forces.slice(),
+    fixed: state.constraints.slice(),
+    E: state.E, nu: state.nu,
+    thickness: state.thickness,
+    sigmaY: state.sigmaY
+  }, [nodesBuf, trisBuf]);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === HISTORY ===
+// ═════════════════════════════════════════════════════════════════════════
+function saveHistoryFrame(){
+  state.history.push({
+    seq: state.solveSeq,
+    maxVM: state.maxVM,
+    minSF: state.minSF,
+    nodesYielded: state.nodesYielded,
+    time: state.lastSolveTime,
+    material: state.material,
+    timestamp: Date.now(),
+    // snapshot just summary; replay would need stress/u — keep memory bounded
+    nodalStressBuf: state.nodalStress.slice(),
+    uBuf: state.u.slice()
+  });
+  if (state.history.length > 24) state.history.shift();
+  renderHistoryBars();
+}
+
+function renderHistoryBars(){
+  const cont = document.getElementById('history-frames');
+  cont.innerHTML = '';
+  const maxOfMax = Math.max(...state.history.map(h=>h.maxVM), 1);
+  state.history.forEach((h, i) => {
+    const d = document.createElement('div');
+    d.className = 'history-frame' + (i === state.history.length-1 ? ' active' : '');
+    d.style.height = `${Math.max(8, (h.maxVM/maxOfMax)*100)}%`;
+    d.title = `Solve #${h.seq} — σ_max ${(h.maxVM/1e6).toFixed(1)} MPa`;
+    d.addEventListener('click', () => {
+      state.nodalStress = h.nodalStressBuf.slice();
+      state.u = h.uBuf.slice();
+      state.maxVM = h.maxVM; state.minSF = h.minSF;
+      state.tweenStart = performance.now();
+      [...cont.children].forEach(c=>c.classList.remove('active'));
+      d.classList.add('active');
+    });
+    cont.appendChild(d);
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === NEXUS AI ===
+// ═════════════════════════════════════════════════════════════════════════
+function nexusSay(opt){
+  const cont = document.getElementById('nexus-content');
+  const msg = document.createElement('div');
+  msg.className = 'nexus-message';
+  const badgeClass = opt.badge || 'safe';
+  const badgeTxt = opt.badgeLabel || badgeClass.toUpperCase();
+  msg.innerHTML =
+    `<div class="nexus-badge ${badgeClass}">${badgeTxt}</div>` +
+    `<p id="nexus-typing-${Date.now()}"></p>`;
+  cont.appendChild(msg);
+  cont.scrollTop = cont.scrollHeight;
+  const p = msg.querySelector('p');
+  typewriter(p, opt.message);
+}
+
+function typewriter(el, txt){
+  el.innerHTML = '<span class="typing-cursor"></span>';
+  const cursor = el.querySelector('.typing-cursor');
+  let i = 0;
+  const step = () => {
+    if (i < txt.length){
+      const c = document.createTextNode(txt[i]);
+      el.insertBefore(c, cursor);
+      i++;
+      setTimeout(step, 12 + Math.random()*18);
+    } else {
+      cursor.remove();
+    }
+  };
+  step();
+}
+
+async function queryNexus(){
+  // Always show local commentary; if API key set, augment with Claude.
+  const matName = MATERIALS[state.material].name;
+  const sigmaMaxMPa = state.maxVM / 1e6;
+  const sigmaYMPa = state.sigmaY / 1e6;
+  const sf = state.minSF;
+  const ny = state.nodesYielded;
+
+  let badge = 'safe', badgeLabel = 'SAFE';
+  if (ny > 0) { badge = 'yielding'; badgeLabel = 'YIELDING'; }
+  else if (sf < 1.5) { badge = 'concentration'; badgeLabel = 'STRESS CONCENTRATION'; }
+  else if (sf < 3.0) { badge = 'fatigue'; badgeLabel = 'FATIGUE RISK'; }
+
+  // Location description for max node
+  let locDesc = 'interior';
+  if (state.nodes && state.maxNode>=0){
+    const xs=[], ys=[];
+    for (let i=0;i<state.numNodes;i++){ xs.push(state.nodes[2*i]); ys.push(state.nodes[2*i+1]); }
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    const mx=state.nodes[2*state.maxNode], my=state.nodes[2*state.maxNode+1];
+    const fx = (mx-minX)/(maxX-minX), fy = (my-minY)/(maxY-minY);
+    const xt = fx<0.25?'left':fx>0.75?'right':'center';
+    const yt = fy<0.25?'bottom':fy>0.75?'top':'mid';
+    locDesc = `${yt}-${xt} region`;
+  }
+
+  const fallback =
+    `Peak Von Mises is ${sigmaMaxMPa.toFixed(1)} MPa in ${matName} (yield ${sigmaYMPa.toFixed(0)} MPa) — ` +
+    (ny>0
+      ? `${ny} node${ny>1?'s have':' has'} exceeded yield. `
+      : `safety factor ${sf<10?sf.toFixed(2):'∞'} at the critical node. `) +
+    `Critical zone sits in the ${locDesc} — likely a stress concentration where the load path narrows or a geometric notch amplifies σ. ` +
+    (ny>0
+      ? `Add material at the critical zone, increase thickness, or fillet sharp corners to redistribute load.`
+      : sf<2
+        ? `Consider a stiffer cross-section or material upgrade — fatigue life will be marginal in this regime.`
+        : `Design is structurally adequate; you have headroom to optimize mass.`);
+
+  nexusSay({ badge, badgeLabel, message: fallback });
+
+  state.nexusBusy = true;
+  document.getElementById('nexus-status').textContent = 'ANALYZING…';
+  try {
+    const systemPrompt =
+      "You are NEXUS, an expert structural engineering AI assistant embedded in a browser FEA tool. " +
+      "You receive simulation data and give sharp, specific, actionable engineering commentary. " +
+      "You speak like a brilliant professor who respects the user's intelligence. Never generic. Always specific to the numbers.";
+
+    const userPrompt =
+      `Material: ${matName} (E=${(state.E/1e9).toFixed(0)} GPa, ν=${state.nu}, σy=${sigmaYMPa.toFixed(0)} MPa)\n` +
+      `Mesh: ${state.numNodes} nodes, ${state.tris.length/3} CST elements\n` +
+      `Loads: ${state.forces.map(f=>`(${(f.fx/1000).toFixed(1)},${(f.fy/1000).toFixed(1)}) kN`).join(', ')}\n` +
+      `Constraints: ${state.constraints.length} fixed DOFs\n` +
+      `Max σ_VM = ${sigmaMaxMPa.toFixed(2)} MPa at ${locDesc}\n` +
+      `Min safety factor = ${sf<10?sf.toFixed(2):'>10'}\n` +
+      `Nodes yielded: ${ny}\n\n` +
+      `Respond in exactly 3 sentences:\n` +
+      `1) what's happening structurally\n` +
+      `2) where the critical failure zone is and why\n` +
+      `3) a specific design recommendation.\n` +
+      `Then output a final line: FAILURE_MODE: <YIELDING|FATIGUE RISK|STRESS CONCENTRATION|SAFE>`;
+
+    const resp = await fetch('http://localhost:3000/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ systemPrompt, userPrompt })
+    });
+    if (!resp.ok){
+      const t = await resp.text();
+      throw new Error(`Backend ${resp.status}: ${t.slice(0,140)}`);
+    }
+    const data = await resp.json();
+    const text = data.text || '';
+    const fmMatch = text.match(/FAILURE_MODE:\s*([A-Z\s]+)/i);
+    const cleaned = text.replace(/FAILURE_MODE:.*$/im, '').trim();
+    let bClass = badge, bLabel = badgeLabel;
+    if (fmMatch){
+      const fm = fmMatch[1].trim().toUpperCase();
+      bLabel = fm;
+      if (fm.includes('YIELD')) bClass = 'yielding';
+      else if (fm.includes('FATIGUE')) bClass = 'fatigue';
+      else if (fm.includes('CONCENTRATION')) bClass = 'concentration';
+      else bClass = 'safe';
+    }
+    nexusSay({ badge: bClass, badgeLabel: bLabel, message: cleaned });
+  } catch (err){
+    nexusSay({ badge: 'fatigue', badgeLabel: 'API ERROR', message: `Claude API call failed: ${err.message}. Local analysis above is still valid.` });
+  } finally {
+    state.nexusBusy = false;
+    document.getElementById('nexus-status').textContent = 'LIVE';
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === UI CONTROLLER ===
+// ═════════════════════════════════════════════════════════════════════════
+
+// Tools
+document.querySelectorAll('.tool-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    if (b.dataset.tool === 'erase'){
+      resetAll();
+      return;
+    }
+    document.querySelectorAll('.tool-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    state.tool = b.dataset.tool;
+    document.getElementById('mode-text').textContent = state.tool.toUpperCase() + ' MODE';
+    const hints = {
+      'select': 'Click + drag canvas to pan. Click constraints/forces to inspect.',
+      'sketch': 'Click on canvas to add polygon vertices. Double-click to close.',
+      'constraint': 'Click any boundary node to fix it (pin support, both DOFs).',
+      'force': 'Click + drag from a node to define force vector.',
+      'probe': 'Click any node to pin a live stress probe.'
+    };
+    document.getElementById('tool-hint').textContent = hints[state.tool] || '';
+    // clear pending state
+    state.draggingForce = null;
+    document.getElementById('force-popup').classList.remove('active');
+  });
+});
+
+// Material
+document.getElementById('material-select').addEventListener('change', (e) => {
+  state.material = e.target.value;
+  const m = MATERIALS[state.material];
+  state.E = m.E; state.nu = m.nu; state.sigmaY = m.sy;
+  if (state.material === 'custom'){
+    const Ev = parseFloat(prompt('Young\'s modulus E (GPa)', (state.E/1e9).toFixed(0)));
+    const nuV = parseFloat(prompt('Poisson ratio ν', state.nu.toFixed(2)));
+    const syV = parseFloat(prompt('Yield strength σy (MPa)', (state.sigmaY/1e6).toFixed(0)));
+    if (Ev) state.E = Ev*1e9;
+    if (nuV) state.nu = nuV;
+    if (syV) state.sigmaY = syV*1e6;
+    MATERIALS.custom.E = state.E; MATERIALS.custom.nu = state.nu; MATERIALS.custom.sy = state.sigmaY;
+  }
+  document.getElementById('mat-E').textContent  = (state.E/1e9).toFixed(state.E<1e10?1:0)+' GPa';
+  document.getElementById('mat-nu').textContent = state.nu.toFixed(2);
+  document.getElementById('mat-sy').textContent = (state.sigmaY/1e6).toFixed(0)+' MPa';
+  document.getElementById('mat-rho').textContent= m.rho;
+  updateColorbarTicks();
+});
+
+// Mesh density
+document.getElementById('density').addEventListener('input', (e) => {
+  const v = parseInt(e.target.value, 10);
+  state.meshDensity = Math.round(50 + (v/100)*1950); // 50 → 2000
+  document.getElementById('density-val').textContent = `~${state.meshDensity} elem`;
+});
+document.getElementById('density').addEventListener('change', () => {
+  if (state.polygon.length) rebuildMesh();
+});
+
+// Deformation scale
+document.getElementById('deform').addEventListener('input', (e) => {
+  const v = parseInt(e.target.value, 10);
+  state.deformScale = Math.pow(10, 1 + v/100*2); // 10 → 1000
+  document.getElementById('deform-val').textContent = `×${state.deformScale.toFixed(0)}`;
+});
+
+// Toggles
+document.getElementById('show-mesh').addEventListener('change', e => state.showMesh = e.target.checked);
+document.getElementById('show-deform').addEventListener('change', e => state.showDeform = e.target.checked);
+document.getElementById('show-contours').addEventListener('change', e => state.showContours = e.target.checked);
+document.getElementById('show-principal').addEventListener('change', e => state.showPrincipal = e.target.checked);
+
+// Presets
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', () => loadPreset(b.dataset.preset));
+});
+
+function loadPreset(name){
+  const p = makePresetPolygon(name);
+  if (!p) return;
+  state.polygon = p.polygon.slice();
+  state.sketching = [];
+  state.constraints = []; state.forces = []; state.probes = [];
+  state.hasSolution = false; state.u = null; state.nodalStress = null;
+  fitView();
+  rebuildMesh(() => {
+    autoApplyBCs(p.autoFn);
+    updateStats();
+    nexusSay({
+      badge: 'safe', badgeLabel: 'GEOMETRY LOADED',
+      message: `${name.replace('-',' ').toUpperCase()} loaded with default BCs and load. Press SOLVE [S] to run the analysis.`
+    });
+  });
+}
+
+// Solve
+document.getElementById('solve-btn').addEventListener('click', solveNow);
+document.getElementById('reset-btn').addEventListener('click', () => {
+  state.forces = []; state.constraints = []; state.probes = [];
+  state.u = null; state.nodalStress = null; state.hasSolution = false;
+  updateStats();
+});
+
+// Mouse events on overlay
+overlay.addEventListener('mousemove', onMouseMove);
+overlay.addEventListener('mousedown', onMouseDown);
+overlay.addEventListener('mouseup', onMouseUp);
+overlay.addEventListener('dblclick', onDoubleClick);
+overlay.addEventListener('contextmenu', (e) => e.preventDefault());
+overlay.addEventListener('wheel', onWheel, { passive: false });
+
+function onMouseMove(e){
+  const rect = overlay.getBoundingClientRect();
+  state.mouse.x = (e.clientX - rect.left) * state.dpr;
+  state.mouse.y = (e.clientY - rect.top)  * state.dpr;
+  const mm = p2m(state.mouse.x, state.mouse.y);
+  state.mouse.modelX = mm.x; state.mouse.modelY = mm.y;
+  // Sketch hover
+  if (state.tool === 'sketch' && state.sketching.length){
+    state.sketchHover = { x: mm.x, y: mm.y };
+  } else {
+    state.sketchHover = null;
+  }
+  // Pan
+  if (state.mouse.down && state.tool === 'select'){
+    state.viewOffsetX += e.movementX * state.dpr;
+    state.viewOffsetY += e.movementY * state.dpr;
+  }
+  // Live probe tooltip
+  if (state.hasSolution){
+    const idx = nearestNodeIdx(mm.x, mm.y, 20);
+    const tip = document.getElementById('probe-tooltip');
+    if (idx >= 0){
+      const sx=state.nodalStress[4*idx]/1e6;
+      const sy=state.nodalStress[4*idx+1]/1e6;
+      const txy=state.nodalStress[4*idx+2]/1e6;
+      const vm =state.nodalStress[4*idx+3]/1e6;
+      const sf = state.sigmaY/Math.max(state.nodalStress[4*idx+3], 1);
+      const cls = vm*1e6 >= state.sigmaY ? 'danger' : (sf<2 ? '' : 'safe');
+      tip.innerHTML =
+        `<div class="row"><span class="k">σx</span><span class="v">${sx.toFixed(2)} MPa</span></div>` +
+        `<div class="row"><span class="k">σy</span><span class="v">${sy.toFixed(2)} MPa</span></div>` +
+        `<div class="row"><span class="k">τxy</span><span class="v">${txy.toFixed(2)} MPa</span></div>` +
+        `<div class="row"><span class="k">σ_VM</span><span class="v ${cls}">${vm.toFixed(2)} MPa</span></div>` +
+        `<div class="row"><span class="k">SF</span><span class="v ${cls}">${sf<10?sf.toFixed(2):'∞'}</span></div>`;
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY + 14) + 'px';
+      tip.classList.add('active');
+    } else {
+      tip.classList.remove('active');
+    }
+  }
+  // dragging-force preview already handled by render
+}
+
+function onMouseDown(e){
+  state.mouse.down = true;
+  const rect = overlay.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * state.dpr;
+  const my = (e.clientY - rect.top) * state.dpr;
+  const mm = p2m(mx, my);
+  if (state.tool === 'sketch'){
+    state.sketching.push(mm.x, mm.y);
+  } else if (state.tool === 'constraint'){
+    const idx = nearestNodeIdx(mm.x, mm.y, 30);
+    if (idx >= 0){
+      // toggle
+      const existing = state.constraints.findIndex(c=>c.node===idx);
+      if (existing>=0) state.constraints.splice(existing,1);
+      else state.constraints.push({ node: idx, dx:1, dy:1 });
+    }
+  } else if (state.tool === 'force'){
+    const idx = nearestNodeIdx(mm.x, mm.y, 30);
+    if (idx >= 0){
+      state.draggingForce = { node: idx };
+    }
+  } else if (state.tool === 'probe'){
+    const idx = nearestNodeIdx(mm.x, mm.y, 30);
+    if (idx >= 0){
+      const existing = state.probes.findIndex(p=>p.node===idx);
+      if (existing>=0) state.probes.splice(existing,1);
+      else state.probes.push({ node: idx });
+    }
+  }
+}
+
+function onMouseUp(e){
+  state.mouse.down = false;
+  if (state.draggingForce){
+    const idx = state.draggingForce.node;
+    const a = m2p(state.nodes[2*idx], state.nodes[2*idx+1]);
+    const dx_px = state.mouse.x - a.x;
+    const dy_px = state.mouse.y - a.y;
+    const lenPx = Math.hypot(dx_px, dy_px);
+    if (lenPx > 8){
+      // Force magnitude scaled by canvas size: 100 px = 1000 N default but show popup
+      const mag = lenPx * 100;  // base mapping
+      // direction: force points FROM tail TO tip; tail is dragged endpoint
+      // Force applied on node in direction (tip - tail) — but we drew tail→tip from outside
+      // i.e. arrow points TO node. So force on node = direction tail→tip.
+      // Here drag tip is mouse, tail is node — so force pulls AWAY from node toward mouse.
+      // In model coords: fx = (mouse_modelX - node.x), but canvas Y is flipped.
+      const dirX = dx_px / lenPx;
+      const dirY = -dy_px / lenPx;     // flip y
+      // Replace any existing force on this node
+      state.forces = state.forces.filter(f=>f.node!==idx);
+      state.forces.push({ node: idx, fx: dirX * mag, fy: dirY * mag });
+    }
+    state.draggingForce = null;
+    // Trigger an automatic re-solve if we already have a solution
+    if (state.hasSolution){ solveNow(); }
+  }
+}
+
+function onDoubleClick(e){
+  if (state.tool === 'sketch' && state.sketching.length >= 6){
+    state.polygon = state.sketching.slice();
+    state.sketching = [];
+    state.sketchHover = null;
+    rebuildMesh(() => {
+      nexusSay({ badge:'safe', badgeLabel:'MESH READY',
+        message: `Generated ${state.tris.length/3} CST elements across ${state.numNodes} nodes. Apply constraints and forces, then SOLVE.` });
+    });
+  }
+}
+
+function onWheel(e){
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
+  const rect = overlay.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * state.dpr;
+  const my = (e.clientY - rect.top) * state.dpr;
+  // zoom around mouse
+  const before = p2m(mx, my);
+  state.viewScale *= factor;
+  state.viewOffsetX = mx - before.x * state.viewScale;
+  state.viewOffsetY = my - before.y * state.viewScale;
+}
+
+// Keyboard
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase();
+  if (k === 's') solveNow();
+  else if (k === 'r'){ state.forces=[]; state.constraints=[]; state.probes=[]; state.u=null; state.hasSolution=false; updateStats(); }
+  else if (k === 'm'){
+    const sel = document.getElementById('material-select');
+    const opts = [...sel.options];
+    const idx = (opts.findIndex(o=>o.value===state.material)+1) % opts.length;
+    sel.value = opts[idx].value;
+    sel.dispatchEvent(new Event('change'));
+  }
+  else if (k === 'g'){
+    const cb = document.getElementById('show-mesh');
+    cb.checked = !cb.checked; state.showMesh = cb.checked;
+  }
+  else if (k === 'd'){
+    const cb = document.getElementById('show-deform');
+    cb.checked = !cb.checked; state.showDeform = cb.checked;
+  }
+  else if (k === 'a'){
+    document.querySelector('.right-sidebar').style.display =
+      document.querySelector('.right-sidebar').style.display === 'none' ? 'flex' : 'none';
+  }
+  else if (['1','2','3','4','5'].includes(k)){
+    const map = ['plate-hole','ibeam','lbracket','cantilever','truss'];
+    loadPreset(map[parseInt(k,10)-1]);
+  }
+});
+
+// Reset all
+function resetAll(){
+  state.polygon = []; state.sketching = []; state.nodes=null; state.tris=null;
+  state.constraints=[]; state.forces=[]; state.probes=[];
+  state.u=null; state.nodalStress=null; state.hasSolution=false;
+  state.history = []; renderHistoryBars();
+  updateStats();
+  gpu.numTris = 0; gpu.numWireSegs = 0;
+}
+
+// Stats
+function updateStats(){
+  document.getElementById('stat-nodes').textContent = state.numNodes || 0;
+  document.getElementById('stat-elem').textContent  = state.tris ? state.tris.length/3 : 0;
+  document.getElementById('stat-dof').textContent   = state.numNodes ? state.numNodes*2 : 0;
+  document.getElementById('stat-time').textContent  = state.lastSolveTime ? `${state.lastSolveTime.toFixed(0)} ms` : '— ms';
+  document.getElementById('stat-smax').textContent  = state.maxVM ? `${(state.maxVM/1e6).toFixed(1)} MPa` : '— MPa';
+  const sfEl = document.getElementById('stat-sf');
+  if (state.minSF && state.minSF < Infinity){
+    sfEl.textContent = state.minSF < 10 ? state.minSF.toFixed(2) : '>10';
+    sfEl.className = 'val ' + (state.minSF<1 ? 'danger' : state.minSF<2 ? '' : 'safe');
+  } else {
+    sfEl.textContent = '—'; sfEl.className='val safe';
+  }
+  updateColorbarTicks();
+}
+
+function updateColorbarTicks(){
+  const maxS = state.maxVM > 0 ? state.maxVM/1e6 : state.sigmaY/1e6;
+  document.getElementById('cb-0').textContent  = '0 MPa';
+  document.getElementById('cb-25').textContent = `${(maxS*0.25).toFixed(0)}`;
+  document.getElementById('cb-50').textContent = `${(maxS*0.50).toFixed(0)}`;
+  document.getElementById('cb-75').textContent = `${(maxS*0.75).toFixed(0)}`;
+  document.getElementById('cb-100').textContent= `${maxS.toFixed(0)} MPa`;
+}
+
+// API Status modal
+document.getElementById('api-key-btn').addEventListener('click', () => {
+  document.getElementById('api-modal').classList.add('active');
+});
+document.getElementById('api-cancel').addEventListener('click', () => {
+  document.getElementById('api-modal').classList.remove('active');
+});
+
+// Export PNG
+document.getElementById('export-png').addEventListener('click', () => {
+  if (!state.hasSolution){ alert('Run a solve first.'); return; }
+  exportReport();
+});
+document.getElementById('export-csv').addEventListener('click', () => {
+  if (!state.hasSolution){ alert('Run a solve first.'); return; }
+  exportCSV();
+});
+
+function exportReport(){
+  const c = document.createElement('canvas');
+  c.width = state.canvasW; c.height = state.canvasH;
+  const cc = c.getContext('2d');
+  cc.fillStyle = '#02020a'; cc.fillRect(0,0,c.width,c.height);
+  cc.drawImage(document.getElementById('glcanvas'), 0, 0);
+  cc.drawImage(overlay, 0, 0);
+  // header
+  cc.font = "700 24px Rajdhani";
+  cc.fillStyle = '#00d4ff';
+  cc.fillText('NEXUS FEA  ·  Structural Analysis Report', 24, 36);
+  cc.font = "500 12px JetBrains Mono";
+  cc.fillStyle = '#8a92a8';
+  cc.fillText(new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC', 24, 56);
+  // sidebar info
+  const info = [
+    `Material: ${MATERIALS[state.material].name}`,
+    `E = ${(state.E/1e9).toFixed(0)} GPa  ·  ν = ${state.nu}  ·  σy = ${(state.sigmaY/1e6).toFixed(0)} MPa`,
+    `Mesh: ${state.numNodes} nodes  ·  ${state.tris.length/3} CST elements  ·  ${2*state.numNodes} DOF`,
+    `Solve time: ${state.lastSolveTime.toFixed(0)} ms  ·  CG iterations: ${state.lastSolveIters}`,
+    `Max σ_VM = ${(state.maxVM/1e6).toFixed(2)} MPa  ·  Min SF = ${state.minSF<10?state.minSF.toFixed(2):'>10'}`,
+    `Nodes above yield: ${state.nodesYielded}`
+  ];
+  cc.fillStyle = 'rgba(13,13,26,0.85)';
+  cc.fillRect(c.width-360, c.height-200, 340, 180);
+  cc.strokeStyle = 'rgba(255,255,255,0.15)';
+  cc.strokeRect(c.width-360, c.height-200, 340, 180);
+  cc.font = "500 12px JetBrains Mono";
+  cc.fillStyle = '#e8ecf4';
+  info.forEach((line, i) => cc.fillText(line, c.width-348, c.height-176 + i*22));
+  const link = document.createElement('a');
+  link.download = `nexus_fea_${Date.now()}.png`;
+  link.href = c.toDataURL('image/png');
+  link.click();
+}
+
+function exportCSV(){
+  let csv = 'node,x,y,ux,uy,sigma_x,sigma_y,tau_xy,sigma_VM,safety_factor\\n';
+  for (let i=0;i<state.numNodes;i++){
+    const x=state.nodes[2*i], y=state.nodes[2*i+1];
+    const ux=state.u[2*i], uy=state.u[2*i+1];
+    const sx=state.nodalStress[4*i], sy=state.nodalStress[4*i+1];
+    const txy=state.nodalStress[4*i+2], vm=state.nodalStress[4*i+3];
+    const sf = state.sigmaY/Math.max(vm,1);
+    csv += `${i},${x.toExponential(4)},${y.toExponential(4)},${ux.toExponential(4)},${uy.toExponential(4)},${sx.toExponential(4)},${sy.toExponential(4)},${txy.toExponential(4)},${vm.toExponential(4)},${sf.toFixed(3)}\\n`;
+  }
+  const blob = new Blob([csv], { type:'text/csv' });
+  const link = document.createElement('a');
+  link.download = `nexus_fea_${Date.now()}.csv`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}
+
+// Resize
+function resize(){
+  const center = document.querySelector('.center');
+  const rect = center.getBoundingClientRect();
+  state.canvasW = Math.floor(rect.width * state.dpr);
+  state.canvasH = Math.floor(rect.height * state.dpr);
+  for (const c of [document.getElementById('glcanvas'), overlay]){
+    c.width = state.canvasW; c.height = state.canvasH;
+    c.style.width = rect.width+'px'; c.style.height = rect.height+'px';
+  }
+  if (state.polygon.length) fitView();
+}
+window.addEventListener('resize', resize);
+
+// ═════════════════════════════════════════════════════════════════════════
+// === RENDER LOOP ===
+// ═════════════════════════════════════════════════════════════════════════
+function frame(time){
+  // Stress tween
+  let stressFn = null;
+  if (state.hasSolution && state.nodalStress){
+    const maxS = Math.max(state.maxVM, state.sigmaY*0.05);
+    const ny = state.numNodes;
+    const tweenT = Math.min(1, (time - state.tweenStart)/state.tweenDur);
+    // ease
+    const ease = 1 - Math.pow(1-tweenT, 3);
+    if (state.prevNodalStress && state.prevNodalStress.length === ny*4 && tweenT < 1){
+      stressFn = (i) => {
+        const a = state.prevNodalStress[4*i+3] || 0;
+        const b = state.nodalStress[4*i+3];
+        const v = a + (b-a)*ease;
+        return v / state.sigmaY; // normalized to yield
+      };
+    } else {
+      stressFn = (i) => state.nodalStress[4*i+3] / state.sigmaY;
+    }
+  }
+  updateDeformedPositions(state.deformScale, stressFn);
+  renderGL(time);
+  renderOverlay(time);
+  requestAnimationFrame(frame);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === INTRO ANIMATION ===
+// ═════════════════════════════════════════════════════════════════════════
+function playIntro(){
+  const c = document.getElementById('intro-canvas');
+  const cx = c.getContext('2d');
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const N = 60;
+  // target points: triangle vertices arranged in a grid forming a "plate"
+  const targets = [];
+  const cols = 10, rows = 6;
+  const sp = 50;
+  const ox = c.width/2 - cols*sp/2, oy = c.height/2 - rows*sp/2;
+  for (let r=0;r<=rows;r++) for (let cc=0;cc<=cols;cc++){
+    targets.push({ x: ox + cc*sp, y: oy + r*sp });
+  }
+  const parts = targets.map(t => ({
+    x: Math.random()*c.width, y: Math.random()*c.height,
+    tx: t.x, ty: t.y
+  }));
+  const t0 = performance.now();
+  function step(){
+    const t = (performance.now()-t0)/2200;
+    cx.clearRect(0,0,c.width,c.height);
+    const e = Math.min(1, t);
+    const ease = 1 - Math.pow(1-e, 4);
+    for (const p of parts){
+      const px = p.x + (p.tx-p.x)*ease;
+      const py = p.y + (p.ty-p.y)*ease;
+      cx.fillStyle = `rgba(0,212,255,${0.25 + 0.5*ease})`;
+      cx.beginPath();
+      cx.arc(px, py, 1.5 + 1.5*ease, 0, Math.PI*2);
+      cx.fill();
+    }
+    // when settled, draw triangle mesh
+    if (ease > 0.7){
+      const alpha = (ease-0.7)/0.3;
+      cx.strokeStyle = `rgba(0,212,255,${alpha*0.5})`;
+      cx.lineWidth = 0.7;
+      for (let r=0;r<rows;r++){
+        for (let cc=0;cc<cols;cc++){
+          const a = r*(cols+1)+cc, b = a+1, dd = a+(cols+1), ee = dd+1;
+          const pa=parts[a], pb=parts[b], pc=parts[dd], pe=parts[ee];
+          cx.beginPath();
+          cx.moveTo(pa.tx, pa.ty); cx.lineTo(pb.tx, pb.ty); cx.lineTo(pe.tx, pe.ty); cx.closePath(); cx.stroke();
+          cx.beginPath();
+          cx.moveTo(pa.tx, pa.ty); cx.lineTo(pe.tx, pe.ty); cx.lineTo(pc.tx, pc.ty); cx.closePath(); cx.stroke();
+        }
+      }
+    }
+    // bleed in colormap on right half
+    if (ease > 0.85){
+      const alpha = (ease-0.85)/0.15;
+      const grad = cx.createLinearGradient(c.width/2, 0, c.width, 0);
+      grad.addColorStop(0, 'rgba(0,212,255,0)');
+      grad.addColorStop(1, `rgba(255,40,40,${alpha*0.4})`);
+      cx.fillStyle = grad;
+      cx.fillRect(c.width/2, 0, c.width/2, c.height);
+    }
+    if (t < 1.2) requestAnimationFrame(step);
+  }
+  step();
+  setTimeout(() => {
+    document.getElementById('intro').classList.add('fade');
+    setTimeout(() => document.getElementById('intro').remove(), 800);
+    nexusSay({ badge:'safe', badgeLabel:'READY', message:'NEXUS online. Load a preset with keys 1–5 or sketch a custom polygon to begin.'});
+  }, 2500);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// === BOOT ===
+// ═════════════════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  resize();
+  // initial material
+  document.getElementById('material-select').dispatchEvent(new Event('change'));
+  playIntro();
+  requestAnimationFrame(frame);
+});
+</script>
+</body>
+</html>
