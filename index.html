@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NEXUS FEA — Real-Time Finite Element Analysis</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2302020a'/%3E%3Cpolygon points='16,4 28,28 4,28' fill='none' stroke='%2300d4ff' stroke-width='1.5'/%3E%3Cline x1='16' y1='4' x2='16' y2='28' stroke='%23bf7af0' stroke-width='1' opacity='0.6'/%3E%3Cline x1='4' y1='28' x2='20' y2='14' stroke='%23bf7af0' stroke-width='1' opacity='0.6'/%3E%3Cline x1='28' y1='28' x2='12' y2='14' stroke='%23bf7af0' stroke-width='1' opacity='0.6'/%3E%3Ccircle cx='16' cy='4' r='2' fill='%2300d4ff'/%3E%3Ccircle cx='4' cy='28' r='2' fill='%2300d4ff'/%3E%3Ccircle cx='28' cy='28' r='2' fill='%2300d4ff'/%3E%3Ccircle cx='16' cy='16' r='1.5' fill='%23ff3b3b'/%3E%3C/svg%3E">
+<title>NEXUS FEA - Real-Time Finite Element Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -395,7 +394,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3 L19 12 L13 13 L11 19 Z"/></svg>
           Select
         </button>
-        <button class="tool-btn" data-tool="sketch" title="Sketch polygon — click to add nodes, double-click to close">
+        <button class="tool-btn" data-tool="sketch" title="Sketch polygon: click to add nodes, double-click to close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 18 L8 6 L18 8 L20 16 L12 20 Z"/><circle cx="4" cy="18" r="1.5" fill="currentColor"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="18" cy="8" r="1.5" fill="currentColor"/><circle cx="20" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="20" r="1.5" fill="currentColor"/></svg>
           Sketch
         </button>
@@ -403,7 +402,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 20 L21 20" /><path d="M5 20 L7 16 L9 20 Z M9 20 L11 16 L13 20 Z M13 20 L15 16 L17 20 Z"/></svg>
           Fix
         </button>
-        <button class="tool-btn" data-tool="force" title="Apply force — click a node, drag to set vector">
+        <button class="tool-btn" data-tool="force" title="Apply force: click a node, drag to set vector">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5 L19 19" /><path d="M19 19 L19 14 M19 19 L14 19"/></svg>
           Force
         </button>
@@ -487,7 +486,7 @@
     </div>
     <div class="nexus-content" id="nexus-content">
       <div class="nexus-message">
-        <p style="color:var(--text);">Welcome. I'm NEXUS — your embedded structural engineering assistant.</p>
+        <p style="color:var(--text);">Welcome. I'm NEXUS, your embedded structural engineering assistant.</p>
         <p>Sketch a geometry or load a preset, apply constraints and forces, then hit <span style="color:var(--cyan); font-family:'JetBrains Mono';">SOLVE</span>. I'll analyze every solve and provide failure mode prediction, critical zone identification, and design recommendations.</p>
         <p style="color:var(--text-mute); font-size:11px; margin-top:14px;">→ Click "NEXUS AI" in the top bar to connect your Claude API key for live commentary.</p>
       </div>
@@ -508,10 +507,10 @@
         <div class="colorbar"></div>
         <div class="colorbar-ticks">
           <span id="cb-0">0 MPa</span>
-          <span id="cb-25">—</span>
-          <span id="cb-50">—</span>
-          <span id="cb-75">—</span>
-          <span id="cb-100">— MPa</span>
+          <span id="cb-25">-</span>
+          <span id="cb-50">-</span>
+          <span id="cb-75">-</span>
+          <span id="cb-100">- MPa</span>
         </div>
       </div>
     </div>
@@ -519,9 +518,9 @@
       <div class="stat"><span class="label">Nodes</span><span class="val" id="stat-nodes">0</span></div>
       <div class="stat"><span class="label">Elem</span><span class="val" id="stat-elem">0</span></div>
       <div class="stat"><span class="label">DOF</span><span class="val" id="stat-dof">0</span></div>
-      <div class="stat"><span class="label">Solve</span><span class="val cyan" id="stat-time">— ms</span></div>
-      <div class="stat"><span class="label">σ<sub>max</sub></span><span class="val" id="stat-smax">— MPa</span></div>
-      <div class="stat"><span class="label">SF<sub>min</sub></span><span class="val safe" id="stat-sf">—</span></div>
+      <div class="stat"><span class="label">Solve</span><span class="val cyan" id="stat-time">- ms</span></div>
+      <div class="stat"><span class="label">s<sub>max</sub></span><span class="val" id="stat-smax">- MPa</span></div>
+      <div class="stat"><span class="label">SF<sub>min</sub></span><span class="val safe" id="stat-sf">-</span></div>
     </div>
   </div>
 </div>
@@ -540,7 +539,7 @@
 <script>
 "use strict";
 /* ╔═══════════════════════════════════════════════════════════════════════╗
-   ║                      NEXUS FEA — Real-Time 2D FEA                     ║
+   ║                      NEXUS FEA - Real-Time 2D FEA                     ║
    ║  CST elements · Bowyer-Watson Delaunay · Conjugate Gradient solver    ║
    ║  WebGL2 stress field · Canvas 2D overlay · Claude API · Web Worker    ║
    ╚═══════════════════════════════════════════════════════════════════════╝ */
@@ -554,11 +553,11 @@ const SOLVER_WORKER_SRC = `
 "use strict";
 /* === CST FINITE ELEMENT SOLVER (Web Worker) ===
    Plane stress assumption · 3-node Constant Strain Triangle
-   Reference: Cook, Malkus, Plesha — "Concepts and Applications of FEA" Ch 6
+   Reference: Cook, Malkus, Plesha - "Concepts and Applications of FEA" Ch 6
 */
 
 // Bowyer-Watson Delaunay triangulation
-// Reference: Bowyer (1981), Watson (1981) — incremental insertion
+// Reference: Bowyer (1981), Watson (1981) - incremental insertion
 function delaunay(points){
   // points: Float64Array [x0,y0,x1,y1,...]
   const n = points.length / 2;
@@ -607,21 +606,19 @@ function delaunay(points){
       }
     }
     // collect edges of bad triangles, keep edges appearing once (polygon hole)
-    const edges = [];
+    const edgeCount = new Map();
+    const edgePairs = [];
     for (const t of bad){
-      edges.push([t[0],t[1]],[t[1],t[2]],[t[2],t[0]]);
+      const triEdges = [[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]];
+      for (const [a,b] of triEdges){
+        const key = a < b ? (a * 1000003 + b) : (b * 1000003 + a);
+        edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+        edgePairs.push([a, b, key]);
+      }
     }
     const uniq = [];
-    for (let a=0; a<edges.length; a++){
-      let shared = false;
-      for (let b=0; b<edges.length; b++){
-        if (a===b) continue;
-        if ((edges[a][0]===edges[b][0] && edges[a][1]===edges[b][1]) ||
-            (edges[a][0]===edges[b][1] && edges[a][1]===edges[b][0])){
-          shared = true; break;
-        }
-      }
-      if (!shared) uniq.push(edges[a]);
+    for (const [a, b, key] of edgePairs){
+      if (edgeCount.get(key) === 1) uniq.push([a, b]);
     }
     for (const e of uniq) tris.push([e[0], e[1], i]);
   }
@@ -756,14 +753,14 @@ function buildB(x1,y1,x2,y2,x3,y3, B, outArea){
 }
 
 // Compute element stiffness Ke = t·A·B^T·D·B  (6×6)
+const _DB_buf = new Float64Array(18); // reused across buildKe calls
 function buildKe(B, D, A, t, Ke){
   // DB = D·B  (3×6)
-  const DB = new Float64Array(18);
   for (let i=0;i<3;i++){
     for (let j=0;j<6;j++){
       let s=0;
       for (let k=0;k<3;k++) s += D[i*3+k]*B[k*6+j];
-      DB[i*6+j] = s;
+      _DB_buf[i*6+j] = s;
     }
   }
   // Ke = B^T · DB · t · A
@@ -771,7 +768,7 @@ function buildKe(B, D, A, t, Ke){
   for (let i=0;i<6;i++){
     for (let j=0;j<6;j++){
       let s=0;
-      for (let k=0;k<3;k++) s += B[k*6+i]*DB[k*6+j];
+      for (let k=0;k<3;k++) s += B[k*6+i]*_DB_buf[k*6+j];
       Ke[i*6+j] = s*f;
     }
   }
@@ -804,7 +801,7 @@ function applyK(elKes, elNodes, v, out, numDOF){
 }
 
 // Conjugate Gradient solver for Ku = F with fixed-DOF mask
-// Reference: Shewchuk — "An Introduction to the CG Method Without the Agonizing Pain"
+// Reference: Shewchuk - "An Introduction to the CG Method Without the Agonizing Pain"
 function solveCG(elKes, elNodes, F, fixedMask, numDOF, maxIter, tol){
   const u  = new Float64Array(numDOF);
   const r  = new Float64Array(numDOF);
@@ -855,7 +852,8 @@ function postprocess(nodes, tris, u, D){
     const x1=nodes[2*n0],   y1=nodes[2*n0+1];
     const x2=nodes[2*n1],   y2=nodes[2*n1+1];
     const x3=nodes[2*n2],   y3=nodes[2*n2+1];
-    buildB(x1,y1,x2,y2,x3,y3,B,area);
+    const ok = buildB(x1,y1,x2,y2,x3,y3,B,area);
+    if (!ok || area[0] < 1e-12) continue;
     const ue = [
       u[2*n0],  u[2*n0+1],
       u[2*n1],  u[2*n1+1],
@@ -1031,6 +1029,7 @@ const state = {
   // results
   u: null, nodalStress: null, elemStress: null,
   maxVM: 0, minSF: Infinity, maxNode: 0,
+  nodesYielded: 0, lastSolveTime: 0, lastSolveIters: 0,
   prevNodalStress: null, // for tween
   tweenStart: 0, tweenDur: 350,
   // material
@@ -1094,7 +1093,7 @@ function colormap(v){
 const gl = document.getElementById('glcanvas').getContext('webgl2', {
   antialias: true, alpha: true, premultipliedAlpha: false
 });
-if (!gl){ alert('WebGL2 not supported. Try a modern browser.'); }
+if (!gl){ alert('WebGL2 not supported. Try a modern browser.'); throw new Error('WebGL2 not available'); }
 
 const VS_STRESS = `#version 300 es
 precision mediump float;
@@ -1126,7 +1125,7 @@ void main(){
   // bloom for yielded regions
   if (vStress > 1.0){
     float pulse = 0.5 + 0.5*sin(uTime*6.0);
-    c = mix(vec3(1.0), vec3(1.0,1.0,1.0), pulse);
+    c = mix(c, vec3(1.0, 0.95, 0.9), pulse);
   }
   // subtle gamma to make low stress feel darker
   c = pow(c, vec3(0.92));
@@ -1384,7 +1383,7 @@ function renderOverlay(time){
     ctx.closePath();
     ctx.stroke();
   }
-  // Stress contours (compute from nodal stress) — only if solved & enabled
+  // Stress contours (compute from nodal stress) - only if solved & enabled
   if (state.hasSolution && state.showContours && state.nodalStress){
     drawStressContours();
   }
@@ -1419,7 +1418,7 @@ function renderOverlay(time){
     }
   }
   // Dragging force (live)
-  if (state.draggingForce){
+  if (state.draggingForce && state.nodes){
     const a = m2p(state.nodes[2*state.draggingForce.node],
                   state.nodes[2*state.draggingForce.node+1]);
     const b = { x: state.mouse.x, y: state.mouse.y };
@@ -1498,7 +1497,7 @@ function drawArrowPx(x1, y1, x2, y2, color, label, dashed){
   if (dashed) ctx.setLineDash([6,4]);
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   ctx.setLineDash([]);
-  // arrowhead — triangle
+  // arrowhead - triangle
   ctx.save();
   ctx.translate(x2, y2);
   ctx.rotate(ang);
@@ -1527,7 +1526,7 @@ function drawArrowPx(x1, y1, x2, y2, color, label, dashed){
 }
 
 function drawProbe(pr){
-  if (!state.nodalStress || pr.node<0) return;
+  if (!state.nodes || !state.nodalStress || pr.node<0) return;
   const x = state.nodes[2*pr.node], y = state.nodes[2*pr.node+1];
   const p = m2p(x, y);
   ctx.beginPath();
@@ -1551,6 +1550,7 @@ function drawStressContours(){
   // Marching contours approach: for each tri, find iso lines at fixed normalized stress levels
   const levels = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90];
   const maxS = state.maxVM > 0 ? state.maxVM : state.sigmaY;
+  const ds = state.showDeform && state.u ? state.deformScale : 0;
   ctx.lineWidth = 0.8;
   for (const lv of levels){
     const target = lv * maxS;
@@ -1559,9 +1559,12 @@ function drawStressContours(){
     for (let e=0; e<state.tris.length/3; e++){
       const a=state.tris[3*e], b=state.tris[3*e+1], c=state.tris[3*e+2];
       const va=state.nodalStress[4*a+3], vb=state.nodalStress[4*b+3], vc=state.nodalStress[4*c+3];
-      const pa = { x: state.nodes[2*a], y: state.nodes[2*a+1] };
-      const pb = { x: state.nodes[2*b], y: state.nodes[2*b+1] };
-      const pc = { x: state.nodes[2*c], y: state.nodes[2*c+1] };
+      const dxA = ds ? state.u[2*a]*ds : 0, dyA = ds ? state.u[2*a+1]*ds : 0;
+      const dxB = ds ? state.u[2*b]*ds : 0, dyB = ds ? state.u[2*b+1]*ds : 0;
+      const dxC = ds ? state.u[2*c]*ds : 0, dyC = ds ? state.u[2*c+1]*ds : 0;
+      const pa = { x: state.nodes[2*a]+dxA, y: state.nodes[2*a+1]+dyA };
+      const pb = { x: state.nodes[2*b]+dxB, y: state.nodes[2*b+1]+dyB };
+      const pc = { x: state.nodes[2*c]+dxC, y: state.nodes[2*c+1]+dyC };
       const segs = isoSegments(pa, pb, pc, va, vb, vc, target);
       for (const s of segs){
         const p1 = m2p(s.x1, s.y1), p2 = m2p(s.x2, s.y2);
@@ -1592,10 +1595,11 @@ function isoSegments(pa, pb, pc, va, vb, vc, t){
 }
 
 function drawPrincipalCrosses(){
-  // For each node, compute principal stresses & directions from σx, σy, τxy
-  // σ1,2 = (σx+σy)/2 ± √(((σx-σy)/2)² + τxy²)
-  // θ_p = 0.5 atan2(2τxy, σx-σy)
+  // For each node, compute principal stresses & directions from sx, sy, txy
+  // s1,2 = (sx+sy)/2 +/- sqrt(((sx-sy)/2)^2 + txy^2)
+  // theta_p = 0.5 atan2(2txy, sx-sy)
   const n = state.numNodes;
+  const ds = state.showDeform && state.u ? state.deformScale : 0;
   ctx.lineWidth = 1;
   for (let i=0; i<n; i++){
     const sx = state.nodalStress[4*i];
@@ -1605,7 +1609,8 @@ function drawPrincipalCrosses(){
     const dd = Math.sqrt(((sx-sy)*0.5)*((sx-sy)*0.5) + txy*txy);
     const s1 = avg + dd, s2 = avg - dd;
     const theta = 0.5 * Math.atan2(2*txy, sx-sy);
-    const p = m2p(state.nodes[2*i], state.nodes[2*i+1]);
+    const dx = ds ? state.u[2*i]*ds : 0, dy = ds ? state.u[2*i+1]*ds : 0;
+    const p = m2p(state.nodes[2*i]+dx, state.nodes[2*i+1]+dy);
     const sc = 10;
     const r1 = Math.min(Math.abs(s1)/state.sigmaY, 1)*sc;
     const r2 = Math.min(Math.abs(s2)/state.sigmaY, 1)*sc;
@@ -1645,6 +1650,11 @@ function polygonBoundaryNodes(){
   if (!state.nodes || !state.polygon.length) return [];
   const set = new Set();
   const tol = 1e-4; // model units
+  // Compute span once for dynamic tolerance
+  let span = 0;
+  for (let m=0;m<state.polygon.length;m+=2){
+    span = Math.max(span, Math.abs(state.polygon[m]), Math.abs(state.polygon[m+1]));
+  }
   // collect points on each polygon edge
   for (let i=0, j=state.polygon.length-2; i<state.polygon.length; j=i, i+=2){
     const ax=state.polygon[j], ay=state.polygon[j+1];
@@ -1658,11 +1668,6 @@ function polygonBoundaryNodes(){
       const cx = ax + ex*t, cy = ay + ey*t;
       const dx = px-cx, dy = py-cy;
       const dist = Math.hypot(dx, dy);
-      // dynamic tolerance based on bbox
-      let span = 0;
-      for (let m=0;m<state.polygon.length;m+=2){
-        span = Math.max(span, Math.abs(state.polygon[m]), Math.abs(state.polygon[m+1]));
-      }
       if (dist < span*1e-3 + 1e-6){
         set.add(k);
       }
@@ -1747,7 +1752,7 @@ function makePresetPolygon(name){
       return { polygon: pts, autoFn: 'cantilever' };
     },
     'truss': () => {
-      // Approximate a triangular truss span (single solid panel — bridge profile)
+      // Approximate a triangular truss span (single solid panel, bridge profile)
       const L = 0.6, H = 0.12, d = 0.05;
       const pts = [
         0,0,   L*0.15,H,   L*0.5,H,   L*0.85,H,   L,0
@@ -1861,6 +1866,10 @@ solver.onmessage = (ev) => {
     state.tweenStart = performance.now();
     document.getElementById('solve-btn').disabled = false;
     document.getElementById('solve-overlay').classList.remove('active');
+    if (!msg.converged) {
+      nexusSay({ badge:'fatigue', badgeLabel:'CONVERGENCE WARNING',
+        message:`Solver did not converge after ${msg.iters} iterations. Results near singularities or with very coarse meshes may be inaccurate.` });
+    }
     if (msg.nodesYielded > 0){
       document.getElementById('yield-warning').classList.add('active');
       setTimeout(() => document.getElementById('yield-warning').classList.remove('active'), 1200);
@@ -1886,12 +1895,12 @@ solver.onmessage = (ev) => {
 // ═════════════════════════════════════════════════════════════════════════
 function solveNow(){
   if (state.solving) return;
-  if (!state.nodes || state.tris.length === 0){
+  if (!state.nodes || !state.tris || state.tris.length === 0){
     nexusSay({ badge:'fatigue', badgeLabel:'NO MESH', message:'No mesh exists yet. Sketch a geometry or load a preset.' });
     return;
   }
   if (state.constraints.length === 0){
-    nexusSay({ badge:'fatigue', badgeLabel:'UNCONSTRAINED', message:'Model has no boundary conditions — it would rigid-body float under load. Apply constraints to at least one edge.' });
+    nexusSay({ badge:'fatigue', badgeLabel:'UNCONSTRAINED', message:'Model has no boundary conditions: it would rigid-body float under load. Apply constraints to at least one edge.' });
     return;
   }
   if (state.forces.length === 0){
@@ -1929,9 +1938,12 @@ function saveHistoryFrame(){
     time: state.lastSolveTime,
     material: state.material,
     timestamp: Date.now(),
-    // snapshot just summary; replay would need stress/u — keep memory bounded
     nodalStressBuf: state.nodalStress.slice(),
-    uBuf: state.u.slice()
+    uBuf: state.u.slice(),
+    nodesBuf: state.nodes.slice(),
+    trisBuf: state.tris.slice(),
+    numNodes: state.numNodes,
+    polygonBuf: state.polygon.slice()
   });
   if (state.history.length > 24) state.history.shift();
   renderHistoryBars();
@@ -1945,12 +1957,20 @@ function renderHistoryBars(){
     const d = document.createElement('div');
     d.className = 'history-frame' + (i === state.history.length-1 ? ' active' : '');
     d.style.height = `${Math.max(8, (h.maxVM/maxOfMax)*100)}%`;
-    d.title = `Solve #${h.seq} — σ_max ${(h.maxVM/1e6).toFixed(1)} MPa`;
+    d.title = `Solve #${h.seq} - sigma_max ${(h.maxVM/1e6).toFixed(1)} MPa`;
     d.addEventListener('click', () => {
       state.nodalStress = h.nodalStressBuf.slice();
       state.u = h.uBuf.slice();
       state.maxVM = h.maxVM; state.minSF = h.minSF;
+      state.nodesYielded = h.nodesYielded;
+      state.nodes = h.nodesBuf.slice();
+      state.tris = h.trisBuf.slice();
+      state.numNodes = h.numNodes;
+      state.polygon = h.polygonBuf.slice();
+      state.hasSolution = true;
       state.tweenStart = performance.now();
+      uploadMesh();
+      updateStats();
       [...cont.children].forEach(c=>c.classList.remove('active'));
       d.classList.add('active');
     });
@@ -1967,8 +1987,11 @@ function nexusSay(opt){
   msg.className = 'nexus-message';
   const badgeClass = opt.badge || 'safe';
   const badgeTxt = opt.badgeLabel || badgeClass.toUpperCase();
+  // Sanitize badge text to prevent XSS
+  const safeBadge = badgeTxt.replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+  const safeClass = badgeClass.replace(/[^a-z-]/g, '');
   msg.innerHTML =
-    `<div class="nexus-badge ${badgeClass}">${badgeTxt}</div>` +
+    `<div class="nexus-badge ${safeClass}">${safeBadge}</div>` +
     `<p id="nexus-typing-${Date.now()}"></p>`;
   cont.appendChild(msg);
   cont.scrollTop = cont.scrollHeight;
@@ -1995,6 +2018,8 @@ function typewriter(el, txt){
 
 async function queryNexus(){
   // Always show local commentary; if API key set, augment with Claude.
+  if (state.nexusBusy) return;
+  state.nexusBusy = true;
   const matName = MATERIALS[state.material].name;
   const sigmaMaxMPa = state.maxVM / 1e6;
   const sigmaYMPa = state.sigmaY / 1e6;
@@ -2020,20 +2045,19 @@ async function queryNexus(){
   }
 
   const fallback =
-    `Peak Von Mises is ${sigmaMaxMPa.toFixed(1)} MPa in ${matName} (yield ${sigmaYMPa.toFixed(0)} MPa) — ` +
+    `Peak Von Mises is ${sigmaMaxMPa.toFixed(1)} MPa in ${matName} (yield ${sigmaYMPa.toFixed(0)} MPa). ` +
     (ny>0
       ? `${ny} node${ny>1?'s have':' has'} exceeded yield. `
-      : `safety factor ${sf<10?sf.toFixed(2):'∞'} at the critical node. `) +
-    `Critical zone sits in the ${locDesc} — likely a stress concentration where the load path narrows or a geometric notch amplifies σ. ` +
+      : `Safety factor ${sf<10?sf.toFixed(2):'>10'} at the critical node. `) +
+    `Critical zone sits in the ${locDesc}, likely a stress concentration where the load path narrows or a geometric notch amplifies stress. ` +
     (ny>0
       ? `Add material at the critical zone, increase thickness, or fillet sharp corners to redistribute load.`
       : sf<2
-        ? `Consider a stiffer cross-section or material upgrade — fatigue life will be marginal in this regime.`
+        ? `Consider a stiffer cross-section or material upgrade; fatigue life will be marginal in this regime.`
         : `Design is structurally adequate; you have headroom to optimize mass.`);
 
   nexusSay({ badge, badgeLabel, message: fallback });
 
-  state.nexusBusy = true;
   document.getElementById('nexus-status').textContent = 'ANALYZING…';
   try {
     const systemPrompt =
@@ -2055,7 +2079,10 @@ async function queryNexus(){
       `3) a specific design recommendation.\n` +
       `Then output a final line: FAILURE_MODE: <YIELDING|FATIGUE RISK|STRESS CONCENTRATION|SAFE>`;
 
-    const resp = await fetch('http://localhost:3000/api/analyze', {
+    const apiUrl = window.location.port === '3000'
+      ? 'http://localhost:3000/api/analyze'
+      : '/api/analyze';
+    const resp = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ systemPrompt, userPrompt })
@@ -2122,11 +2149,11 @@ document.getElementById('material-select').addEventListener('change', (e) => {
   state.E = m.E; state.nu = m.nu; state.sigmaY = m.sy;
   if (state.material === 'custom'){
     const Ev = parseFloat(prompt('Young\'s modulus E (GPa)', (state.E/1e9).toFixed(0)));
-    const nuV = parseFloat(prompt('Poisson ratio ν', state.nu.toFixed(2)));
-    const syV = parseFloat(prompt('Yield strength σy (MPa)', (state.sigmaY/1e6).toFixed(0)));
-    if (Ev) state.E = Ev*1e9;
-    if (nuV) state.nu = nuV;
-    if (syV) state.sigmaY = syV*1e6;
+    const nuV = parseFloat(prompt('Poisson ratio (0 to 0.49)', state.nu.toFixed(2)));
+    const syV = parseFloat(prompt('Yield strength sy (MPa)', (state.sigmaY/1e6).toFixed(0)));
+    if (isFinite(Ev) && Ev > 0) state.E = Ev*1e9;
+    if (isFinite(nuV) && nuV >= 0 && nuV < 0.5) state.nu = nuV;
+    if (isFinite(syV) && syV > 0) state.sigmaY = syV*1e6;
     MATERIALS.custom.E = state.E; MATERIALS.custom.nu = state.nu; MATERIALS.custom.sy = state.sigmaY;
   }
   document.getElementById('mat-E').textContent  = (state.E/1e9).toFixed(state.E<1e10?1:0)+' GPa';
@@ -2184,11 +2211,7 @@ function loadPreset(name){
 
 // Solve
 document.getElementById('solve-btn').addEventListener('click', solveNow);
-document.getElementById('reset-btn').addEventListener('click', () => {
-  state.forces = []; state.constraints = []; state.probes = [];
-  state.u = null; state.nodalStress = null; state.hasSolution = false;
-  updateStats();
-});
+document.getElementById('reset-btn').addEventListener('click', resetAll);
 
 // Mouse events on overlay
 overlay.addEventListener('mousemove', onMouseMove);
@@ -2216,7 +2239,7 @@ function onMouseMove(e){
     state.viewOffsetY += e.movementY * state.dpr;
   }
   // Live probe tooltip
-  if (state.hasSolution){
+  if (state.hasSolution && state.nodalStress){
     const idx = nearestNodeIdx(mm.x, mm.y, 20);
     const tip = document.getElementById('probe-tooltip');
     if (idx >= 0){
@@ -2275,7 +2298,7 @@ function onMouseDown(e){
 
 function onMouseUp(e){
   state.mouse.down = false;
-  if (state.draggingForce){
+  if (state.draggingForce && state.nodes){
     const idx = state.draggingForce.node;
     const a = m2p(state.nodes[2*idx], state.nodes[2*idx+1]);
     const dx_px = state.mouse.x - a.x;
@@ -2284,19 +2307,20 @@ function onMouseUp(e){
     if (lenPx > 8){
       // Force magnitude scaled by canvas size: 100 px = 1000 N default but show popup
       const mag = lenPx * 100;  // base mapping
-      // direction: force points FROM tail TO tip; tail is dragged endpoint
-      // Force applied on node in direction (tip - tail) — but we drew tail→tip from outside
-      // i.e. arrow points TO node. So force on node = direction tail→tip.
-      // Here drag tip is mouse, tail is node — so force pulls AWAY from node toward mouse.
-      // In model coords: fx = (mouse_modelX - node.x), but canvas Y is flipped.
       const dirX = dx_px / lenPx;
-      const dirY = -dy_px / lenPx;     // flip y
-      // Replace any existing force on this node
+      const dirY = -dy_px / lenPx;
       state.forces = state.forces.filter(f=>f.node!==idx);
       state.forces.push({ node: idx, fx: dirX * mag, fy: dirY * mag });
+    } else {
+      // Click without drag: show force popup for precise input
+      state.pendingForceNode = idx;
+      const popup = document.getElementById('force-popup');
+      popup.classList.add('active');
+      popup.style.left = (e.clientX + 10) + 'px';
+      popup.style.top = (e.clientY - 40) + 'px';
+      document.getElementById('force-mag').focus();
     }
     state.draggingForce = null;
-    // Trigger an automatic re-solve if we already have a solution
     if (state.hasSolution){ solveNow(); }
   }
 }
@@ -2307,6 +2331,10 @@ function onDoubleClick(e){
     state.sketching = [];
     state.sketchHover = null;
     rebuildMesh(() => {
+      if (!state.tris || state.tris.length === 0){
+        nexusSay({ badge:'fatigue', badgeLabel:'MESH FAILED', message:'Mesh generation failed. Try a simpler polygon.' });
+        return;
+      }
       nexusSay({ badge:'safe', badgeLabel:'MESH READY',
         message: `Generated ${state.tris.length/3} CST elements across ${state.numNodes} nodes. Apply constraints and forces, then SOLVE.` });
     });
@@ -2329,9 +2357,10 @@ function onWheel(e){
 // Keyboard
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (k === 's') solveNow();
-  else if (k === 'r'){ state.forces=[]; state.constraints=[]; state.probes=[]; state.u=null; state.hasSolution=false; updateStats(); }
+  else if (k === 'r') resetAll();
   else if (k === 'm'){
     const sel = document.getElementById('material-select');
     const opts = [...sel.options];
@@ -2372,14 +2401,14 @@ function updateStats(){
   document.getElementById('stat-nodes').textContent = state.numNodes || 0;
   document.getElementById('stat-elem').textContent  = state.tris ? state.tris.length/3 : 0;
   document.getElementById('stat-dof').textContent   = state.numNodes ? state.numNodes*2 : 0;
-  document.getElementById('stat-time').textContent  = state.lastSolveTime ? `${state.lastSolveTime.toFixed(0)} ms` : '— ms';
-  document.getElementById('stat-smax').textContent  = state.maxVM ? `${(state.maxVM/1e6).toFixed(1)} MPa` : '— MPa';
+  document.getElementById('stat-time').textContent  = state.lastSolveTime ? `${state.lastSolveTime.toFixed(0)} ms` : '- ms';
+  document.getElementById('stat-smax').textContent  = state.maxVM ? `${(state.maxVM/1e6).toFixed(1)} MPa` : '- MPa';
   const sfEl = document.getElementById('stat-sf');
   if (state.minSF && state.minSF < Infinity){
     sfEl.textContent = state.minSF < 10 ? state.minSF.toFixed(2) : '>10';
     sfEl.className = 'val ' + (state.minSF<1 ? 'danger' : state.minSF<2 ? '' : 'safe');
   } else {
-    sfEl.textContent = '—'; sfEl.className='val safe';
+    sfEl.textContent = '-'; sfEl.className='val safe';
   }
   updateColorbarTicks();
 }
@@ -2401,6 +2430,39 @@ document.getElementById('api-cancel').addEventListener('click', () => {
   document.getElementById('api-modal').classList.remove('active');
 });
 
+// Force popup
+document.getElementById('force-apply').addEventListener('click', () => {
+  const idx = state.pendingForceNode;
+  if (idx < 0 || !state.nodes) return;
+  const mag = parseFloat(document.getElementById('force-mag').value) || 1000;
+  const angDeg = parseFloat(document.getElementById('force-ang').value) || 270;
+  const angRad = angDeg * Math.PI / 180;
+  state.forces = state.forces.filter(f=>f.node!==idx);
+  state.forces.push({ node: idx, fx: mag * Math.cos(angRad), fy: -mag * Math.sin(angRad) });
+  document.getElementById('force-popup').classList.remove('active');
+  state.pendingForceNode = -1;
+  if (state.hasSolution){ solveNow(); }
+});
+document.getElementById('force-mag').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('force-apply').click();
+  e.stopPropagation();
+});
+document.getElementById('force-ang').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('force-apply').click();
+  if (e.key === 'Escape'){
+    document.getElementById('force-popup').classList.remove('active');
+    state.pendingForceNode = -1;
+  }
+  e.stopPropagation();
+});
+// Close force popup on Escape
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape'){
+    document.getElementById('force-popup').classList.remove('active');
+    state.pendingForceNode = -1;
+  }
+});
+
 // Export PNG
 document.getElementById('export-png').addEventListener('click', () => {
   if (!state.hasSolution){ alert('Run a solve first.'); return; }
@@ -2412,6 +2474,7 @@ document.getElementById('export-csv').addEventListener('click', () => {
 });
 
 function exportReport(){
+  if (!state.nodes || !state.u || !state.nodalStress){ alert('No solution to export.'); return; }
   const c = document.createElement('canvas');
   c.width = state.canvasW; c.height = state.canvasH;
   const cc = c.getContext('2d');
@@ -2448,14 +2511,15 @@ function exportReport(){
 }
 
 function exportCSV(){
-  let csv = 'node,x,y,ux,uy,sigma_x,sigma_y,tau_xy,sigma_VM,safety_factor\\n';
+  if (!state.nodes || !state.u || !state.nodalStress){ alert('No solution data to export.'); return; }
+  let csv = 'node,x,y,ux,uy,sigma_x,sigma_y,tau_xy,sigma_VM,safety_factor\n';
   for (let i=0;i<state.numNodes;i++){
     const x=state.nodes[2*i], y=state.nodes[2*i+1];
     const ux=state.u[2*i], uy=state.u[2*i+1];
     const sx=state.nodalStress[4*i], sy=state.nodalStress[4*i+1];
     const txy=state.nodalStress[4*i+2], vm=state.nodalStress[4*i+3];
     const sf = state.sigmaY/Math.max(vm,1);
-    csv += `${i},${x.toExponential(4)},${y.toExponential(4)},${ux.toExponential(4)},${uy.toExponential(4)},${sx.toExponential(4)},${sy.toExponential(4)},${txy.toExponential(4)},${vm.toExponential(4)},${sf.toFixed(3)}\\n`;
+    csv += `${i},${x.toExponential(4)},${y.toExponential(4)},${ux.toExponential(4)},${uy.toExponential(4)},${sx.toExponential(4)},${sy.toExponential(4)},${txy.toExponential(4)},${vm.toExponential(4)},${sf.toFixed(3)}\n`;
   }
   const blob = new Blob([csv], { type:'text/csv' });
   const link = document.createElement('a');
@@ -2482,6 +2546,11 @@ window.addEventListener('resize', resize);
 // === RENDER LOOP ===
 // ═════════════════════════════════════════════════════════════════════════
 function frame(time){
+  // Skip rendering if nothing to draw
+  if (!state.polygon.length && !state.hasSolution){
+    requestAnimationFrame(frame);
+    return;
+  }
   // Stress tween
   let stressFn = null;
   if (state.hasSolution && state.nodalStress){
@@ -2572,7 +2641,7 @@ function playIntro(){
   setTimeout(() => {
     document.getElementById('intro').classList.add('fade');
     setTimeout(() => document.getElementById('intro').remove(), 800);
-    nexusSay({ badge:'safe', badgeLabel:'READY', message:'NEXUS online. Load a preset with keys 1–5 or sketch a custom polygon to begin.'});
+    nexusSay({ badge:'safe', badgeLabel:'READY', message:'NEXUS online. Load a preset with keys 1-5 or sketch a custom polygon to begin.'});
   }, 2500);
 }
 
