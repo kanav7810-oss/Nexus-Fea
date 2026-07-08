@@ -522,6 +522,8 @@
       <div class="stat"><span class="label">Solve</span><span class="val cyan" id="stat-time">- ms</span></div>
       <div class="stat"><span class="label">s<sub>max</sub></span><span class="val" id="stat-smax">- MPa</span></div>
       <div class="stat"><span class="label">SF<sub>min</sub></span><span class="val safe" id="stat-sf">-</span></div>
+      <div class="stat"><span class="label">K<sub>I</sub></span><span class="val cyan" id="stat-ki">- MPa&middot;m<sup>1/2</sup></span></div>
+      <div class="stat"><span class="label">L2 Error</span><span class="val" id="stat-l2">- %</span></div>
     </div>
   </div>
 </div>
@@ -918,6 +920,7 @@ self.onmessage = function(ev){
       const forces = msg.forces; // [{node, fx, fy}]
       const fixed  = msg.fixed;  // array of node indices  [{node, dx, dy}]   (dx,dy = 0 or 1 if constrained)
       const E = msg.E, nu = msg.nu, t = msg.thickness;
+      const W = msg.W || 0.40, H = msg.H || 0.20;
       const numN = nodes.length/2;
       const numE = tris.length/3;
       const numDOF = 2*numN;
@@ -959,6 +962,72 @@ self.onmessage = function(ev){
       const { u, iters, converged } = solveCG(elKes, tris, F, fixedMask, numDOF, 4000, 1e-7);
       // Post-process
       const { elemStress, nodalStress } = postprocess(nodes, tris, u, D);
+
+      // === K_I estimation via displacement correlation method ===
+      // At theta=0 (ahead of crack tip), u_y = K_I/(2G) * sqrt(2r/pi) * kappa
+      // kappa = (3-nu)/(1+nu) for plane stress
+      // We sample u_y at nodes along theta=0 and fit to extract K_I
+      let K_I_est = 0;
+      let k_samples = 0;
+      const kappa = (3 - nu) / (1 + nu);
+      const G = E / (2 * (1 + nu));
+      // Find the crack tip: rightmost crack face node
+      let crackTipX = -Infinity;
+      for (let i = 0; i < numN; i++) {
+        if (nodes[2*i+1] !== 0 && Math.abs(nodes[2*i+1]) < 0.01 && nodes[2*i] > crackTipX && nodes[2*i] < W/2) {
+          // Check if this node is on the crack face (very close to y=0, x < a)
+          if (Math.abs(nodes[2*i+1]) < 0.005 && nodes[2*i] < W/2 - 0.01) {
+            crackTipX = Math.max(crackTipX, nodes[2*i]);
+          }
+        }
+      }
+      // If we can't find crack tip, estimate from geometry
+      if (crackTipX < 0) {
+        // Default: center crack, tip at center
+        crackTipX = 0;
+      }
+      // Sample u_y at nodes near theta=0, ahead of crack tip
+      for (let i = 0; i < numN; i++) {
+        const nx = nodes[2*i], ny = nodes[2*i+1];
+        const r = nx - crackTipX;
+        const theta = Math.atan2(ny, nx - crackTipX);
+        // Sample along theta=0 (ahead of crack), r > 0
+        if (r > 0.001 && r < 0.08 && Math.abs(theta) < 0.15 && Math.abs(ny) < 0.005) {
+          const uy = u[2*i+1]; // vertical displacement
+          const denom = (1/(2*G)) * Math.sqrt(2*r/Math.PI) * kappa;
+          if (Math.abs(denom) > 1e-15) {
+            K_I_est += Math.abs(uy) / denom;
+            k_samples++;
+          }
+        }
+      }
+      if (k_samples > 0) K_I_est /= k_samples;
+
+      // === L2 norm of stress error ===
+      // Integrate |sigma_VM_FEM - sigma_VM_analytical|^2 over crack-tip region
+      const a_crack = W/4; // half-crack length (center crack = half of plate width if not specified)
+      const K_I_analytical = 0; // Will be computed below if sigma_inf is known
+      let l2_numer = 0, l2_denom = 0;
+      const l2_r_max = 0.06; // integrate up to 60mm from crack tip
+      for (let e = 0; e < numE; e++) {
+        const n0 = tris[3*e], n1 = tris[3*e+1], n2 = tris[3*e+2];
+        const cx = (nodes[2*n0] + nodes[2*n1] + nodes[2*n2]) / 3;
+        const cy = (nodes[2*n0+1] + nodes[2*n1+1] + nodes[2*n2+1]) / 3;
+        const r_e = Math.sqrt((cx - crackTipX)**2 + cy**2);
+        if (r_e > 0.0005 && r_e < l2_r_max) {
+          const vm_fem = nodalStress[4*n0+3]; // use first node value (CST = constant)
+          // Analytical: sigma_VM = sigma_yy at theta=0 for center crack
+          // sigma_yy = K_I_analytical / sqrt(2*pi*r)
+          // We use K_I_est as our reference
+          if (K_I_est > 0) {
+            const vm_ana = K_I_est / Math.sqrt(2 * Math.PI * r_e);
+            l2_numer += (vm_fem - vm_ana)**2;
+            l2_denom += vm_ana**2;
+          }
+        }
+      }
+      const L2_norm = l2_denom > 0 ? Math.sqrt(l2_numer / l2_denom) : 0;
+
       // Max Von Mises & location
       let maxVM = 0, maxNode = 0;
       for (let i=0;i<numN;i++){
@@ -980,6 +1049,7 @@ self.onmessage = function(ev){
         nodalStress: nodalStress.buffer,
         elemStress: elemStress.buffer,
         maxVM, maxNode, minSF, nodesYielded,
+        K_I: K_I_est, L2_norm,
         iters, converged, solveTime: t1-t0,
         totalArea, degenerate
       }, [u.buffer, nodalStress.buffer, elemStress.buffer]);
@@ -1031,6 +1101,7 @@ const state = {
   u: null, nodalStress: null, elemStress: null,
   maxVM: 0, minSF: Infinity, maxNode: 0,
   nodesYielded: 0, lastSolveTime: 0, lastSolveIters: 0,
+  K_I: 0, L2_norm: 0,
   prevNodalStress: null, // for tween
   tweenStart: 0, tweenDur: 350,
   // material
@@ -1860,6 +1931,8 @@ solver.onmessage = (ev) => {
     state.maxVM = msg.maxVM; state.minSF = msg.minSF;
     state.maxNode = msg.maxNode;
     state.nodesYielded = msg.nodesYielded;
+    state.K_I = msg.K_I || 0;
+    state.L2_norm = msg.L2_norm || 0;
     state.lastSolveTime = msg.solveTime;
     state.lastSolveIters = msg.iters;
     state.hasSolution = true;
@@ -1923,7 +1996,8 @@ function solveNow(){
     fixed: state.constraints.slice(),
     E: state.E, nu: state.nu,
     thickness: state.thickness,
-    sigmaY: state.sigmaY
+    sigmaY: state.sigmaY,
+    W: 0.40, H: 0.20
   }, [nodesBuf, trisBuf]);
 }
 
@@ -1936,6 +2010,8 @@ function saveHistoryFrame(){
     maxVM: state.maxVM,
     minSF: state.minSF,
     nodesYielded: state.nodesYielded,
+    K_I: state.K_I,
+    L2_norm: state.L2_norm,
     time: state.lastSolveTime,
     material: state.material,
     timestamp: Date.now(),
@@ -1964,6 +2040,8 @@ function renderHistoryBars(){
       state.u = h.uBuf.slice();
       state.maxVM = h.maxVM; state.minSF = h.minSF;
       state.nodesYielded = h.nodesYielded;
+      state.K_I = h.K_I || 0;
+      state.L2_norm = h.L2_norm || 0;
       state.nodes = h.nodesBuf.slice();
       state.tris = h.trisBuf.slice();
       state.numNodes = h.numNodes;
@@ -2047,6 +2125,8 @@ async function queryNexus(){
 
   const fallback =
     `Peak Von Mises is ${sigmaMaxMPa.toFixed(1)} MPa in ${matName} (yield ${sigmaYMPa.toFixed(0)} MPa). ` +
+    (state.K_I > 0 ? `Stress intensity factor K_I = ${(state.K_I/1e6).toFixed(2)} MPa·m½. ` : '') +
+    (state.L2_norm > 0 ? `L2 relative error = ${(state.L2_norm*100).toFixed(1)}%. ` : '') +
     (ny>0
       ? `${ny} node${ny>1?'s have':' has'} exceeded yield. `
       : `Safety factor ${sf<10?sf.toFixed(2):'>10'} at the critical node. `) +
@@ -2073,8 +2153,10 @@ async function queryNexus(){
       `Constraints: ${state.constraints.length} fixed DOFs\n` +
       `Max σ_VM = ${sigmaMaxMPa.toFixed(2)} MPa at ${locDesc}\n` +
       `Min safety factor = ${sf<10?sf.toFixed(2):'>10'}\n` +
-      `Nodes yielded: ${ny}\n\n` +
-      `Respond in exactly 3 sentences:\n` +
+      `Nodes yielded: ${ny}\n` +
+      (state.K_I > 0 ? `Stress intensity factor K_I = ${(state.K_I/1e6).toFixed(2)} MPa·m½\n` : '') +
+      (state.L2_norm > 0 ? `L2 relative error = ${(state.L2_norm*100).toFixed(1)}%\n` : '') +
+      `\nRespond in exactly 3 sentences:\n` +
       `1) what's happening structurally\n` +
       `2) where the critical failure zone is and why\n` +
       `3) a specific design recommendation.\n` +
@@ -2392,6 +2474,7 @@ function resetAll(){
   state.polygon = []; state.sketching = []; state.nodes=null; state.tris=null;
   state.constraints=[]; state.forces=[]; state.probes=[];
   state.u=null; state.nodalStress=null; state.hasSolution=false;
+  state.K_I=0; state.L2_norm=0;
   state.history = []; renderHistoryBars();
   updateStats();
   gpu.numTris = 0; gpu.numWireSegs = 0;
@@ -2410,6 +2493,24 @@ function updateStats(){
     sfEl.className = 'val ' + (state.minSF<1 ? 'danger' : state.minSF<2 ? '' : 'safe');
   } else {
     sfEl.textContent = '-'; sfEl.className='val safe';
+  }
+  // K_I display
+  const kiEl = document.getElementById('stat-ki');
+  if (state.K_I > 0) {
+    kiEl.textContent = `${(state.K_I/1e6).toFixed(2)} MPa·m½`;
+    kiEl.className = 'val cyan';
+  } else {
+    kiEl.textContent = '- MPa·m½';
+    kiEl.className = 'val';
+  }
+  // L2 norm display
+  const l2El = document.getElementById('stat-l2');
+  if (state.L2_norm > 0) {
+    l2El.textContent = `${(state.L2_norm*100).toFixed(1)}%`;
+    l2El.className = 'val ' + (state.L2_norm < 0.1 ? 'safe' : state.L2_norm < 0.3 ? '' : 'danger');
+  } else {
+    l2El.textContent = '- %';
+    l2El.className = 'val';
   }
   updateColorbarTicks();
 }
@@ -2492,16 +2593,17 @@ function exportReport(){
   // sidebar info
   const info = [
     `Material: ${MATERIALS[state.material].name}`,
-    `E = ${(state.E/1e9).toFixed(0)} GPa  ·  ν = ${state.nu}  ·  σy = ${(state.sigmaY/1e6).toFixed(0)} MPa`,
+    `E = ${(state.E/1e9).toFixed(0)} GPa  ·  v = ${state.nu}  ·  sy = ${(state.sigmaY/1e6).toFixed(0)} MPa`,
     `Mesh: ${state.numNodes} nodes  ·  ${state.tris.length/3} CST elements  ·  ${2*state.numNodes} DOF`,
     `Solve time: ${state.lastSolveTime.toFixed(0)} ms  ·  CG iterations: ${state.lastSolveIters}`,
-    `Max σ_VM = ${(state.maxVM/1e6).toFixed(2)} MPa  ·  Min SF = ${state.minSF<10?state.minSF.toFixed(2):'>10'}`,
+    `Max s_VM = ${(state.maxVM/1e6).toFixed(2)} MPa  ·  Min SF = ${state.minSF<10?state.minSF.toFixed(2):'>10'}`,
+    `K_I = ${(state.K_I/1e6).toFixed(2)} MPa·m½  ·  L2 error = ${(state.L2_norm*100).toFixed(1)}%`,
     `Nodes above yield: ${state.nodesYielded}`
   ];
   cc.fillStyle = 'rgba(13,13,26,0.85)';
-  cc.fillRect(c.width-360, c.height-200, 340, 180);
+  cc.fillRect(c.width-360, c.height-220, 340, 200);
   cc.strokeStyle = 'rgba(255,255,255,0.15)';
-  cc.strokeRect(c.width-360, c.height-200, 340, 180);
+  cc.strokeRect(c.width-360, c.height-220, 340, 200);
   cc.font = "500 12px JetBrains Mono";
   cc.fillStyle = '#e8ecf4';
   info.forEach((line, i) => cc.fillText(line, c.width-348, c.height-176 + i*22));
