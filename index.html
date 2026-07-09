@@ -371,6 +371,7 @@
       <button class="preset-btn" data-preset="lbracket"><span class="k">3</span>L-Bracket</button>
       <button class="preset-btn" data-preset="cantilever"><span class="k">4</span>Cantilever</button>
       <button class="preset-btn" data-preset="truss"><span class="k">5</span>Truss</button>
+      <button class="preset-btn" data-preset="ccp"><span class="k">6</span>CCP Crack</button>
     </div>
     <div class="topbar-spacer"></div>
     <div class="shortcut-hint">
@@ -1830,6 +1831,22 @@ function makePresetPolygon(name){
         0,0,   L*0.15,H,   L*0.5,H,   L*0.85,H,   L,0
       ];
       return { polygon: pts, autoFn: 'truss' };
+    },
+    'ccp': () => {
+      // Center-Cracked Plate (CCP) specimen - right half with symmetry
+      // Standard ASTM E399 geometry: W=0.20m, H=0.40m, a=0.02m
+      // Modeled as right half (x>=0), crack from x=0 to x=a at y=0
+      const W2 = 0.10, H2 = 0.20, a = 0.02;
+      // Polygon: right half-plate, crack on bottom edge
+      const pts = [
+        0, 0,        // crack mouth (y=0, x=0)
+        a, 0,        // crack tip
+        W2, 0,       // bottom-right
+        W2, H2,      // top-right
+        0, H2,       // top-left (symmetry line)
+        0, 0         // close back to crack mouth
+      ];
+      return { polygon: pts, autoFn: 'ccp', crackTip: a };
     }
   };
   return presets[name] ? presets[name]() : null;
@@ -1892,6 +1909,29 @@ function autoApplyBCs(name){
       if (d<bestD){bestD=d; bestN=i;}
     }
     if (bestN>=0) state.forces.push({ node:bestN, fx:0, fy:-6000 });
+  } else if (name === 'ccp'){
+    // Center-Cracked Plate: right half with symmetry
+    // BCs: ux=0 on x=0 (symmetry), uy=0 on y=0 (symmetry/crack face)
+    // Load: tension in y-direction on top edge
+    const xs=[], ys=[]; for (let i=0;i<n;i++){ xs.push(state.nodes[2*i]); ys.push(state.nodes[2*i+1]); }
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+    const minY=Math.min(...ys), maxY=Math.max(...ys);
+    const tolX = (maxX-minX)*0.01;
+    const tolY = (maxY-minY)*0.01;
+    // Left edge (x=0): symmetry, fix ux only
+    const leftN = nodesNear((x,y)=> Math.abs(x-minX) < tolX);
+    for (const i of leftN) state.constraints.push({ node: i, dx:1, dy:0 });
+    // Bottom edge (y=0): symmetry + crack face, fix uy only
+    const bottomN = nodesNear((x,y)=> Math.abs(y-minY) < tolY);
+    for (const i of bottomN) state.constraints.push({ node: i, dx:0, dy:1 });
+    // Top edge (y=H2): tension in y-direction (opening mode)
+    const topN = nodesNear((x,y)=> Math.abs(y-maxY) < tolY);
+    // sigma_inf = 10 MPa, thickness = 0.01m, distribute force evenly
+    const sigma_inf = 10e6;
+    const thickness = 0.01;
+    const totalForce = sigma_inf * thickness * (maxX - minX); // force per unit width * width
+    const forcePerNode = totalForce / Math.max(topN.length, 1);
+    for (const i of topN) state.forces.push({ node: i, fx: 0, fy: forcePerNode });
   }
 }
 
@@ -2463,8 +2503,8 @@ window.addEventListener('keydown', (e) => {
     document.querySelector('.right-sidebar').style.display =
       document.querySelector('.right-sidebar').style.display === 'none' ? 'flex' : 'none';
   }
-  else if (['1','2','3','4','5'].includes(k)){
-    const map = ['plate-hole','ibeam','lbracket','cantilever','truss'];
+  else if (['1','2','3','4','5','6'].includes(k)){
+    const map = ['plate-hole','ibeam','lbracket','cantilever','truss','ccp'];
     loadPreset(map[parseInt(k,10)-1]);
   }
 });
