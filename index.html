@@ -371,7 +371,8 @@
       <button class="preset-btn" data-preset="lbracket"><span class="k">3</span>L-Bracket</button>
       <button class="preset-btn" data-preset="cantilever"><span class="k">4</span>Cantilever</button>
       <button class="preset-btn" data-preset="truss"><span class="k">5</span>Truss</button>
-      <button class="preset-btn" data-preset="ccp"><span class="k">6</span>CCP Crack</button>
+      <button class="preset-btn" data-preset="ccp"><span class="k">6</span>CCP Half</button>
+      <button class="preset-btn" data-preset="ccp-quarter"><span class="k">7</span>CCP Quarter</button>
     </div>
     <div class="topbar-spacer"></div>
     <div class="shortcut-hint">
@@ -1847,6 +1848,22 @@ function makePresetPolygon(name){
         0, 0         // close back to crack mouth
       ];
       return { polygon: pts, autoFn: 'ccp', crackTip: a };
+    },
+    'ccp-quarter': () => {
+      // Center-Cracked Plate (CCP) - QUARTER plate with double symmetry
+      // Models top-right quarter: x=0 to W/2, y=0 to H/2
+      // Crack from x=0 to x=a at y=0
+      // BCs: ux=0 on x=0, uy=0 on y=0, tension on top edge
+      const W2 = 0.10, H4 = 0.10, a = 0.02;
+      const pts = [
+        0, 0,        // crack mouth
+        a, 0,        // crack tip
+        W2, 0,       // bottom-right (free edge)
+        W2, H4,      // top-right
+        0, H4,       // top-left (symmetry line)
+        0, 0         // close
+      ];
+      return { polygon: pts, autoFn: 'ccp-quarter', crackTip: a };
     }
   };
   return presets[name] ? presets[name]() : null;
@@ -1930,6 +1947,28 @@ function autoApplyBCs(name){
     const sigma_inf = 10e6;
     const thickness = 0.01;
     const totalForce = sigma_inf * thickness * (maxX - minX); // force per unit width * width
+    const forcePerNode = totalForce / Math.max(topN.length, 1);
+    for (const i of topN) state.forces.push({ node: i, fx: 0, fy: forcePerNode });
+  } else if (name === 'ccp-quarter'){
+    // CCP Quarter-plate: double symmetry, top-right quarter
+    // BCs: ux=0 on x=0 (symmetry), uy=0 on y=0 (symmetry/crack face)
+    // Load: tension in y-direction on top edge
+    const xs=[], ys=[]; for (let i=0;i<n;i++){ xs.push(state.nodes[2*i]); ys.push(state.nodes[2*i+1]); }
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+    const minY=Math.min(...ys), maxY=Math.max(...ys);
+    const tolX = (maxX-minX)*0.01;
+    const tolY = (maxY-minY)*0.01;
+    // Left edge (x=0): symmetry, fix ux only
+    const leftN = nodesNear((x,y)=> Math.abs(x-minX) < tolX);
+    for (const i of leftN) state.constraints.push({ node: i, dx:1, dy:0 });
+    // Bottom edge (y=0): symmetry + crack face, fix uy only
+    const bottomN = nodesNear((x,y)=> Math.abs(y-minY) < tolY);
+    for (const i of bottomN) state.constraints.push({ node: i, dx:0, dy:1 });
+    // Top edge: tension in y-direction
+    const topN = nodesNear((x,y)=> Math.abs(y-maxY) < tolY);
+    const sigma_inf = 10e6;
+    const thickness = 0.01;
+    const totalForce = sigma_inf * thickness * (maxX - minX);
     const forcePerNode = totalForce / Math.max(topN.length, 1);
     for (const i of topN) state.forces.push({ node: i, fx: 0, fy: forcePerNode });
   }
@@ -2503,8 +2542,8 @@ window.addEventListener('keydown', (e) => {
     document.querySelector('.right-sidebar').style.display =
       document.querySelector('.right-sidebar').style.display === 'none' ? 'flex' : 'none';
   }
-  else if (['1','2','3','4','5','6'].includes(k)){
-    const map = ['plate-hole','ibeam','lbracket','cantilever','truss','ccp'];
+  else if (['1','2','3','4','5','6','7'].includes(k)){
+    const map = ['plate-hole','ibeam','lbracket','cantilever','truss','ccp','ccp-quarter'];
     loadPreset(map[parseInt(k,10)-1]);
   }
 });
